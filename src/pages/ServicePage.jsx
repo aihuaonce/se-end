@@ -56,7 +56,7 @@ function App() {
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
     setError(null);
-    let url = "http://localhost:5713/guests"; // 確保這是你的後端 API 地址
+    let url = "http://localhost:5713/customers"; // 確保這是你的後端 API 地址
     try {
       const res = await fetch(url);
       if (!res.ok) {
