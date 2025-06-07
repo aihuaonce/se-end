@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "tailwind:init": "tailwindcss init -p" 
+    "tailwind:init": "tailwindcss init -p"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
