@@ -1,78 +1,30 @@
-// src/components/Header.jsx
-import React from "react";
-import { Link } from "react-router-dom";
-import { Heart, LogInIcon, User, ShoppingCart } from "lucide-react";
+import React from 'react';
+import { Link } from 'react-router-dom';
 
-const Header = () => {
-  const styles = {
-    header: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: "1.5rem",
-      backgroundColor: "white",
-      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
-    },
-    brandTitle: {
-      fontSize: "1.5rem",
-      fontWeight: "bold",
-      color: "#cb8a90",
-      display: "flex",
-      alignItems: "center",
-      gap: "0.5rem",
-    },
-    brandIcon: {
-      color: "#ffffff",
-    },
-    navMenu: {
-      display: "flex",
-      gap: "1rem",
-      alignItems: "center",
-    },
-    navButton: {
-      display: "flex",
-      alignItems: "center",
-      gap: "0.25rem",
-      background: "none",
-      border: "none",
-      color: "#cb8a90",
-      cursor: "pointer",
-      fontSize: "1rem",
-      textDecoration: "none",
-    },
-    navButtonHover: {
-      textDecoration: "underline",
-    },
-    icon: {
-      width: "1rem",
-      height: "1rem",
-    },
-  };
-
+function Header() {
   return (
-    <header style={styles.header}>
-      <h1 style={styles.brandTitle}>
-        <Link to="/" style={{ display: "flex", alignItems: "center", gap: "0.5rem", textDecoration: "none", color: "#cb8a90" }}>
-          <Heart style={styles.brandIcon} />
-          愛戀婚禮策劃
-        </Link>
+    <header style={{
+      backgroundColor: '#333',
+      padding: '15px 20px',
+      borderBottom: '1px solid #555',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    }}>
+      <h1 style={{ margin: 0, fontSize: '24px' }}>
+        <Link to="/" style={{ color: '#e0e0e0', textDecoration: 'none' }}>婚顧網站</Link>
       </h1>
-      <nav style={styles.navMenu}>
-        <Link to="/login" style={styles.navButton}>
-          <LogInIcon style={styles.icon} /> 登入
-        </Link>
-        <Link to="/register" style={styles.navButton}>
-          <User style={styles.icon} /> 註冊
-        </Link>
-        <Link to="/cart" style={styles.navButton}>
-          <ShoppingCart style={styles.icon} /> 購物車
-        </Link>
-        <Link to="/persondata" style={styles.navButton}>
-          <User style={styles.icon} /> 個人資料
-        </Link>
+      <nav>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex' }}>
+          <li style={{ marginLeft: '20px' }}><Link to="/" style={{ color: '#e0e0e0' }}>專案</Link></li>
+          <li style={{ marginLeft: '20px' }}><Link to="/service" style={{ color: '#e0e0e0' }}>服務</Link></li>
+          <li style={{ marginLeft: '20px' }}><Link to="/customer" style={{ color: '#e0e0e0' }}>顧客</Link></li>
+          <li style={{ marginLeft: '20px' }}><Link to="/finance" style={{ color: '#e0e0e0' }}>財務</Link></li>
+          <li style={{ marginLeft: '20px' }}><Link to="/login" style={{ color: '#e0e0e0' }}>登入/註冊</Link></li>
+        </ul>
       </nav>
     </header>
   );
-};
+}
 
 export default Header;

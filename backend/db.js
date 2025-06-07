@@ -1,16 +1,8 @@
-const mysql = require("mysql2/promise"); // ✅ 用 promise 模式支援 async/await
-
-require('dotenv').config(); // 或 require('dotenv').config({ path: __dirname + '/../.env' });
-console.log("=== 環境變數檢查 ===");
-console.log("DB_HOST:", process.env.DB_HOST);
-console.log("DB_USER:", process.env.DB_USER);
-console.log("DB_PASSWORD:", process.env.DB_PASSWORD);
-console.log("DB_NAME:", process.env.DB_NAME);
-console.log("=================");
-
+// backend/db.js
+const mysql = require("mysql2");
+require('dotenv').config();
 
 const pool = mysql.createPool({
-
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
@@ -23,12 +15,12 @@ const pool = mysql.createPool({
 // 測試資料庫連接
 pool.getConnection((err, connection) => {
     if (err) {
-        console.error("❌ 資料庫連接失敗:", err);
+        console.error("資料庫連接失敗:", err);
+        // 您可以選擇在這裡終止應用程式或採取其他錯誤處理措施
     } else {
-        console.log("✅ 成功連接到資料庫");
-        connection.release();
+        console.log("成功連接到資料庫");
+        connection.release(); // 釋放連接
     }
 });
 
-module.exports = pool;
-
+module.exports = pool; // 導出連接池，讓其他檔案可以使用
