@@ -2,49 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 自定義全站風格 */
+body {
+  @apply bg-pink-50 text-gray-800 font-serif overflow-x-hidden;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* 婚禮主題樣式強化：如果你使用元件系統，可保留這些樣式 */
+h1,
+h2,
+h3 {
+  @apply font-bold text-pink-700;
+}
+
+button {
+  @apply focus: outline-none;
+}
+
+/* 假如你還有 App 結構，也保留安全樣式 */
 .App {
   text-align: center;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
 .App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-body {
-  -webkit-user-select: none; 
-  -moz-user-select: none;   
-  -ms-user-select: none;     
-  user-select: none;         
-  overflow-x: hidden;      
+  color: #ec4899;
+  /* Tailwind pink-500 */
 }
