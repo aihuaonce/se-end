@@ -25,5 +25,5 @@ dist-ssr
 
 /node_modules
 .env
-/google-sheets-key.json
-backend/marry-457507-eb5520c29577.json
+# Google Cloud Service Account Keys
+backend/se-final-461410-21517f7c2edf.json
