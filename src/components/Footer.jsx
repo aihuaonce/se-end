@@ -1,19 +1,21 @@
-import React from 'react';
+// src/components/Footer.jsx
+import React from "react";
 
-function Footer() {
+const Footer = () => {
+  const styles = {
+    footer: {
+      textAlign: "center",
+      fontSize: "0.875rem",
+      color: "#cb8a90",
+      padding: "1.5rem",
+    },
+  };
+
   return (
-    <footer style={{
-      backgroundColor: '#222',
-      padding: '20px',
-      textAlign: 'center',
-      borderTop: '1px solid #444',
-      marginTop: 'auto',
-      fontSize: '0.9em',
-      color: '#aaa',
-    }}>
-      <p>&copy; 2025 XX婚顧公司. All Rights Reserved. </p>
+    <footer style={styles.footer}>
+      © 2025 愛戀婚禮策劃 LoveEver After Weddings. All rights reserved.
     </footer>
   );
-}
+};
 
 export default Footer;
