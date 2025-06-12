@@ -23,7 +23,6 @@ function App() {
 
         <div className="flex flex-grow">
           <Sidebar />
-
           <main className="flex-grow p-4 overflow-y-auto">
             <Routes>
               <Route path="/" element={<HomePage />} />

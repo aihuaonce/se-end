@@ -43,7 +43,7 @@ export default function Sidebar() {
             服務
           </li>
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
-            <Link to="/services/greeting-cards" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
+            <Link to="/service" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
               <Send size={18} />
               <span>自動化賀卡寄送</span>
             </Link>
