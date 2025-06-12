@@ -2,26 +2,8 @@ import React from 'react';
 
 function HomePage() {
   return (
-    <div className="p-4">
-      <h2 className="text-2xl font-bold mb-4">專案清單</h2>
-      <table className="table-auto w-full border">
-        <thead>
-          <tr className="bg-gray-200">
-            <th>專案ID</th>
-            <th>客戶</th>
-            <th>婚禮日期</th>
-            <th>狀態</th>
-          </tr>
-        </thead>
-        <tbody>
-            <tr className="text-center border-t">
-              <td></td>
-              <td></td>
-              <td></td>
-              <td></td>
-            </tr>
-        </tbody>
-      </table>
+    <div style={{ padding: '20px', textAlign: 'center' }}>
+      <h1 className="text-5xl text-white-800">專案頁面 簡稱首頁</h1>
     </div>
   );
 }
