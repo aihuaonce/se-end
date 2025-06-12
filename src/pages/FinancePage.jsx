@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 // 定義後端 API 的 URL
 const API_URL = 'http://localhost:5713'; // 確保這個 URL 正確指向您的後端伺服器
 
-export default function App() {
+export default function FinancePage() { // 將 App 更名為 FinancePage
   const [view, setView] = useState('overview');
   // 概覽數據狀態，新增 totalExpenses
   const [overview, setOverview] = useState({ totalRevenue: 0, pendingPayments: 0, invoiceCount: 0, totalExpenses: 0 });
@@ -27,6 +32,7 @@ export default function App() {
     switch (view) {
       case 'overview':
         fetchOverview();
+        fetchMonthlyReport(); // 概覽頁面也需要月報表數據來顯示圖表
         break;
       case 'invoices':
         fetchInvoices();
@@ -185,7 +191,7 @@ export default function App() {
             <button
               key={item.key}
               className={`block w-full text-left py-2 px-4 transition duration-300 ease-in-out
-                ${view === item.key ? 'bg-white text-[#C9C2B2] font-semibold shadow-md rounded-xl' : 'hover:bg-[#B7B09F] hover:text-white'}`}
+                ${view === item.key ? 'bg-white text-[#C9C2B2] font-semibold shadow-md' : 'hover:bg-[#B7B09F] hover:text-white'}`}
               onClick={() => setView(item.key)}
             >
               {item.label}
@@ -196,7 +202,7 @@ export default function App() {
 
       {/* 主內容區域 */}
       <main className="flex-1 bg-gray-100 p-8">
-        {view === 'overview' && <FinanceOverview data={overview} />}
+        {view === 'overview' && <FinanceOverview data={overview} monthlyReportData={monthlyReportData} />}
         {view === 'invoices' && <InvoiceTable invoices={invoices} />}
         {view === 'customers' && <CustomerTable customers={customers} />}
         {view === 'payments' && <PaymentTable payments={payments} />}
@@ -225,16 +231,51 @@ export default function App() {
   );
 }
 
-// 財務概覽組件 (新增總支出卡片)
-function FinanceOverview({ data }) {
+// 財務概覽組件 (新增總支出卡片及圖表)
+function FinanceOverview({ data, monthlyReportData }) {
   return (
     <div>
       <h3 className="text-3xl font-bold mb-6 text-[#C9C2B2]">財務概覽</h3>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <OverviewCard label="總營收" value={data.totalRevenue} />
         <OverviewCard label="總支出" value={data.totalExpenses} />
         <OverviewCard label="待支付金額" value={data.pendingPayments} />
         <OverviewCard label="發票張數" value={data.invoiceCount} />
+      </div>
+
+      {/* 月度財務走勢圖 */}
+      <h4 className="text-2xl font-bold mb-4 text-[#C9C2B2]">月度財務走勢</h4>
+      <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+        {monthlyReportData && monthlyReportData.length > 0 ? (
+          <>
+            <h5 className="text-xl font-semibold mb-4 text-gray-700">收入與支出趨勢</h5>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={monthlyReportData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip formatter={(value) => `NT$ ${value.toLocaleString()}`} />
+                <Legend />
+                <Line type="monotone" dataKey="total_revenue" name="總收入" stroke="#82ca9d" activeDot={{ r: 8 }} />
+                <Line type="monotone" dataKey="total_expenses" name="總支出" stroke="#8884d8" activeDot={{ r: 8 }} />
+              </LineChart>
+            </ResponsiveContainer>
+
+            <h5 className="text-xl font-semibold mt-8 mb-4 text-gray-700">淨利潤/虧損趨勢</h5>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={monthlyReportData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip formatter={(value) => `NT$ ${value.toLocaleString()}`} />
+                <Legend />
+                <Line type="monotone" dataKey="net_profit_loss" name="淨利潤/虧損" stroke="#ffc658" activeDot={{ r: 8 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </>
+        ) : (
+          <p className="p-4 text-center text-gray-500">沒有足夠的月度數據來顯示圖表。</p>
+        )}
       </div>
     </div>
   );
@@ -252,8 +293,76 @@ function OverviewCard({ label, value }) {
   );
 }
 
-// 發票表格組件
+// 發票表格組件 (新增列印功能)
 function InvoiceTable({ invoices }) {
+  const invoiceRefs = useRef({}); // 用於儲存每個發票的 DOM 引用
+
+  const handlePrintInvoice = async (invoice) => {
+    // 構建要列印的內容的 HTML 字串，簡化為一個臨時 div 包含發票信息
+    // 實際應用中，您會希望這裡有一個專門的、詳細的發票模板
+    const invoiceContent = `
+      <div style="font-family: 'Inter', sans-serif; padding: 20px; color: #333; width: 210mm; min-height: 297mm; margin: 0 auto; box-sizing: border-box; background-color: white;">
+        <h1 style="text-align: center; color: #C9C2B2; margin-bottom: 20px;">發票 #${invoice.id}</h1>
+        <div style="margin-bottom: 20px;">
+          <p><strong>客戶:</strong> ${invoice.customer}</p>
+          <p><strong>開立日期:</strong> ${invoice.issueDate}</p>
+          <p><strong>繳款截止日:</strong> ${invoice.dueDate}</p>
+          <p><strong>狀態:</strong> ${invoice.paid}</p>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <thead>
+            <tr style="background-color: #f2f2f2;">
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">項目</th>
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: right;">金額 (NT$)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd;">服務費</td>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">${invoice.amount?.toLocaleString()}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">總金額</td>
+              <td style="padding: 8px; border: 1px solid #ddd; text-align: right; font-weight: bold;">NT$ ${invoice.amount?.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+        <p style="text-align: right; margin-top: 30px;">感謝您的惠顧！</p>
+      </div>
+    `;
+
+    // 創建一個臨時 div 來渲染 HTML 內容
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write('<html><head><title>發票 #' + invoice.id + '</title>');
+    printWindow.document.write('<style>');
+    printWindow.document.write(`
+      @page { size: A4; margin: 10mm; }
+      body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+      h1, h2, h3, h4, h5, h6 { color: #C9C2B2; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+      th { background-color: #f2f2f2; }
+      .text-right { text-align: right; }
+      .font-bold { font-weight: bold; }
+    `);
+    printWindow.document.write('</style></head><body>');
+    printWindow.document.write(invoiceContent);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+
+    // 等待內容加載完成
+    printWindow.onload = () => {
+        // 使用 setTimeout 確保所有內容都已渲染，然後執行列印
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close(); // 列印後關閉視窗
+        }, 500); // 延遲 500ms，可以根據實際內容複雜度調整
+    };
+  };
+
+
   return (
     <div>
       <h3 className="text-3xl font-bold mb-6 text-[#C9C2B2]">發票管理</h3>
@@ -266,7 +375,8 @@ function InvoiceTable({ invoices }) {
               <th className="p-3 text-left text-sm font-semibold tracking-wider">開立日期</th>
               <th className="p-3 text-left text-sm font-semibold tracking-wider">繳款截止日</th>
               <th className="p-3 text-right text-sm font-semibold tracking-wider">金額</th>
-              <th className="p-3 text-left text-sm font-semibold tracking-wider rounded-tr-lg">狀態</th>
+              <th className="p-3 text-left text-sm font-semibold tracking-wider">狀態</th>
+              <th className="p-3 text-center text-sm font-semibold tracking-wider rounded-tr-lg">操作</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -283,11 +393,19 @@ function InvoiceTable({ invoices }) {
                       {inv.paid}
                     </span>
                   </td>
+                  <td className="p-3 whitespace-nowrap text-center">
+                    <button
+                      onClick={() => handlePrintInvoice(inv)}
+                      className="px-4 py-2 bg-blue-500 text-white text-sm font-semibold rounded-full shadow-md hover:bg-blue-600 transition duration-300 ease-in-out transform hover:scale-105"
+                    >
+                      列印 / 匯出 PDF
+                    </button>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="6" className="p-4 text-center text-gray-500">沒有發票數據。</td>
+                <td colSpan="7" className="p-4 text-center text-gray-500">沒有發票數據。</td>
               </tr>
             )}
           </tbody>

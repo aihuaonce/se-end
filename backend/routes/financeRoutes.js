@@ -10,8 +10,7 @@ const pool = require('../db'); // 從 db.js 引入資料庫連線池
  */
 router.get('/overview', async (req, res) => {
   try {
-    // 計算總營收: 已付款發票的總金額 (來自 customer_payments)
-    // 這裡使用 customer_payments 表的已付款金額作為總營收
+    // 計算總營收: 已付款的客戶款項總和 (來自 customer_payments)
     const [revenueData] = await pool.execute(`
       SELECT COALESCE(SUM(amount), 0) AS totalRevenue
       FROM customer_payments
@@ -293,7 +292,8 @@ router.get('/pettycash', async (req, res) => {
           je.entry_date,
           COALESCE(jel.line_description, je.description) AS description, -- 優先使用明細描述，否則使用主分錄描述
           jel.debit_amount,
-          jel.credit_amount
+          jel.credit_amount,
+          jel.line_id -- 新增 line_id 以確保 key 的唯一性
       FROM journal_entry_lines jel
       JOIN journal_entries je ON jel.entry_id = je.entry_id
       JOIN accounts a ON jel.account_id = a.account_id
