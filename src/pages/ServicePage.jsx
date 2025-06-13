@@ -29,19 +29,12 @@ function App() {
 
   const [formErrors, setFormErrors] = useState({}); // 使用物件來存儲多個欄位的錯誤
   const [isSubmitting, setIsSubmitting] = useState(false); // 新增狀態追蹤是否正在提交表單
-  const [isDeleting, setIsDeleting] = useState(false); // 新增狀態追蹤是否正在刪除
 
   const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'open', 'closed'
   const [isMenuOpen, setIsMenuOpen] = useState(false); // 控制漢堡選單開合
 
   // 新增狀態來管理提示訊息 { message: '...', type: 'success' | 'error' | null }
   const [notification, setNotification] = useState(null);
-
-  // 新增狀態來管理刪除確認框
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [customerToDelete, setCustomerToDelete] = useState(null); // 儲存要刪除客戶的資訊 { id, name }
-  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState(''); // 儲存刪除確認輸入框的值
-  const confirmationText = "確認刪除"; // 刪除確認需要的文字
 
   // ==== 搜尋相關的狀態 ====
   const [searchQuery, setSearchQuery] = useState(''); // 儲存搜尋框的輸入值
@@ -240,63 +233,7 @@ function App() {
       setIsSubmitting(false); // 提交結束，設置狀態為 false
     }
   };
-
-
-  // ==== 刪除客戶函式 (開啟確認框) ====
-  const handleDeleteCustomer = (customerId, customerName) => {
-    setCustomerToDelete({ id: customerId, name: customerName });
-    setShowDeleteConfirm(true);
-  };
-
-  // ==== 處理刪除確認並執行刪除 API ====
-  const confirmDelete = async () => {
-    if (deleteConfirmationInput !== confirmationText) {
-      setNotification({ message: "輸入不符，已取消刪除。", type: "error" });
-      closeDeleteConfirmModal(); // 關閉確認框
-      return;
-    }
-
-    setIsDeleting(true); // 開始刪除，設置狀態為 true
-
-    try {
-      const res = await fetch(`http://localhost:5713/customers/${customerToDelete.id}`, {
-        method: "DELETE",
-      });
-
-      const data = await res.json(); // 嘗試解析 JSON
-
-      if (!res.ok) {
-        const errorMessage = data.message || `刪除客戶 ${customerToDelete.id} 失敗`;
-        console.error(`刪除客戶 API 錯誤 (ID: ${customerToDelete.id}):`, errorMessage);
-        throw new Error(errorMessage);
-      }
-
-      // 刪除成功後重新獲取客戶資料 (會更新 allCustomers，進而觸發篩選和搜尋及分頁重設)
-      fetchCustomers();
-
-      // 使用 setNotification 顯示成功訊息
-      setNotification({ message: `客戶 ${customerToDelete.name} (ID: ${customerToDelete.id}) 刪除成功！`, type: "success" });
-
-      closeDeleteConfirmModal(); // 關閉確認框
-
-    } catch (err) {
-      console.error("刪除客戶錯誤:", err);
-      // 使用 setNotification 顯示錯誤訊息
-      setNotification({ message: "刪除客戶失敗：" + err.message, type: "error" });
-      closeDeleteConfirmModal(); // 關閉確認框
-    } finally {
-      setIsDeleting(false); // 刪除結束，設置狀態為 false
-    }
-  };
-
-  // 關閉刪除確認框並清除狀態
-  const closeDeleteConfirmModal = () => {
-    setShowDeleteConfirm(false);
-    setCustomerToDelete(null);
-    setDeleteConfirmationInput('');
-  };
-
-
+  
   // --- 拖曳開始處理 ---
   const onDragStart = (start) => {
     console.log("Drag started for:", start.draggableId);
@@ -523,39 +460,6 @@ function App() {
           </div>
         )}
 
-        {showDeleteConfirm && customerToDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm transform transition-all duration-300 scale-100">
-              <div className="flex justify-between items-center mb-4 border-b pb-2 border-slate-200">
-                <h2 className="text-xl font-bold text-slate-700">確認刪除</h2>
-                <button onClick={closeDeleteConfirmModal} className="text-slate-500 hover:text-slate-700 text-2xl">&times;</button>
-              </div>
-              <p className="mb-4 text-slate-700">您確定要刪除客戶 <strong>{customerToDelete.name} (ID: {customerToDelete.id})</strong> 嗎？</p>
-              <p className="mb-4 text-slate-700">請輸入 "<strong>{confirmationText}</strong>" 來確認。</p>
-              <input
-                type="text"
-                value={deleteConfirmationInput}
-                onChange={(e) => setDeleteConfirmationInput(e.target.value)}
-                placeholder={confirmationText}
-                className="border border-slate-300 rounded-md p-2 w-full focus:outline-none focus:ring-2 focus:ring-sky-500"
-              />
-              <div className="flex gap-4 mt-4 justify-end">
-                <button
-                  onClick={confirmDelete}
-                  className="bg-red-600 text-white px-4 py-2 rounded-md shadow hover:bg-red-700 disabled:opacity-50"
-                  disabled={isDeleting || deleteConfirmationInput !== confirmationText}
-                >
-                  {isDeleting ? '刪除中...' : '確認刪除'}
-                </button>
-                <button onClick={closeDeleteConfirmModal} className="bg-slate-500 text-white px-4 py-2 rounded-md shadow hover:bg-slate-600" disabled={isDeleting}>
-                  取消
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-
         <div className="w-full max-w-screen-xl mx-auto flex flex-col md:flex-row overflow-x-hidden">
           <div className={`w-full md:w-3/4 bg-white shadow-lg rounded-lg p-6 md:p-8 mb-4 md:mb-0 md:mr-4 flex flex-col`}>
             <div className="flex-grow">
@@ -570,7 +474,7 @@ function App() {
                 <button
                   onClick={() => setShowForm(true)}
                   className="bg-sky-700 text-white px-4 py-2 rounded-md shadow hover:bg-sky-800 transition-colors duration-200 text-sm md:text-base"
-                  disabled={isSubmitting || isDeleting}
+                  disabled={isSubmitting}
                 >
                   新增客戶
                 </button>
@@ -710,7 +614,6 @@ function App() {
                                 <td className="py-3 px-4 border-b border-slate-200 text-sm md:text-lg">
                                   <div className="flex flex-col sm:flex-row justify-center items-center space-y-1 sm:space-y-0 sm:space-x-2">
                                     <Link to={`/customer/${c.id}`} className="inline-block w-full sm:w-auto text-center bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700 transition text-xs sm:text-sm">查看</Link>
-                                    <button onClick={() => handleDeleteCustomer(c.id, `${c.groom_name} & ${c.bride_name}`)} className="inline-block w-full sm:w-auto text-center bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-xs sm:text-sm" disabled={isDeleting}>刪除</button>
                                   </div>
                                 </td>
                               </tr>

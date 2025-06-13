@@ -3,7 +3,7 @@ import { LayoutDashboard, Users, Bus, DollarSign, Calendar, Phone, MessageSquare
 
 export default function Sidebar() {
   return (
-    <div className="h-screen w-64 bg-white flex flex-col" style={{ color: '#CB8A90' }}> 
+    <div className="h-screen w-48 bg-white flex flex-col" style={{ color: '#CB8A90' }}> 
 
       <nav className="flex-1 overflow-y-auto w-full">
         <ul className="space-y-1 p-2 text-sm w-full">
