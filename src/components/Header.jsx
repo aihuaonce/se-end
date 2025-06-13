@@ -1,7 +1,7 @@
 // src/components/Header.jsx
 import React from "react";
 import { Link } from "react-router-dom";
-import { Heart, LogInIcon, User, ShoppingCart } from "lucide-react";
+import { Heart, LogInIcon, User, ShoppingCart, Notebook } from "lucide-react";
 
 const Header = () => {
   const styles = {
@@ -54,7 +54,7 @@ const Header = () => {
       <h1 style={styles.brandTitle}>
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: "0.5rem", textDecoration: "none", color: "#cb8a90" }}>
           <Heart style={styles.brandIcon} />
-          愛戀婚禮策劃
+          小高婚禮策劃
         </Link>
       </h1>
       <nav style={styles.navMenu}>
@@ -63,6 +63,9 @@ const Header = () => {
         </Link>
         <Link to="/register" style={styles.navButton}>
           <User style={styles.icon} /> 註冊
+        </Link>
+        <Link to="/booking" style={styles.navButton}>
+          <Notebook style={styles.icon} /> 預約
         </Link>
         <Link to="/cart" style={styles.navButton}>
           <ShoppingCart style={styles.icon} /> 購物車

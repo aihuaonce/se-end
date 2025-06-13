@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage';
 import CustomerDetails from './pages/CustomerDetail';
 import RegisterPage from './pages/RegisterPage';
 import PersonDataPage from "./pages/PersonDataPage";
+import BookingPage from "./pages/BookingPage";
 import Header from './components/Header';
 import Footer from './components/Footer';
 
@@ -28,6 +29,7 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/persondata" element={<PersonDataPage />} />
+          <Route path="/booking" element={<BookingPage />} />
         </Routes>
       </main>
       {<Footer />}

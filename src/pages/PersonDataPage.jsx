@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import "../styles/pd.css";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 
 const PersonDataPage = () => {
     const [profile, setProfile] = useState(null);
     const email = localStorage.getItem("userEmail");
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -24,6 +27,19 @@ const PersonDataPage = () => {
         if (email) fetchProfile();
     }, [email]);
 
+    // ⚠️ 避免時區偏差，直接回傳字串，不轉成 Date 物件
+    const formatDate = (str) => {
+        return str ? str.split("T")[0] : "";
+    };
+
+
+    const handleLogout = () => {
+        localStorage.removeItem("userId");
+        localStorage.removeItem("userEmail");
+        alert("已登出");
+        navigate("/login");
+    };
+
     if (!email) {
         return <div>請先登入以查看個人資料。</div>;
     }
@@ -31,7 +47,7 @@ const PersonDataPage = () => {
     return (
         <div>
 
-            <div className="main-content">
+            <div className="profile-container">
                 <h2>個人資料</h2>
                 {profile ? (
                     <ul>
@@ -39,12 +55,13 @@ const PersonDataPage = () => {
                         <li>電話：{profile.電話}</li>
                         <li>電子信箱：{profile.電子信箱}</li>
                         <li>喜好風格：{profile.喜好風格}</li>
-                        <li>生日：{profile.生日}</li>
-                        <li>建檔時間：{profile.建檔時間}</li>
+                        <li>生日：{formatDate(profile.生日)}</li>
+                        <li>建檔時間：{formatDate(profile.建檔時間)}</li>
                     </ul>
                 ) : (
                     <p>載入中...</p>
                 )}
+                <button className="logout-button" onClick={handleLogout}>登出</button>
             </div>
 
         </div>

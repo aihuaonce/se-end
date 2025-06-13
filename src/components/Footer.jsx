@@ -13,7 +13,7 @@ const Footer = () => {
 
   return (
     <footer style={styles.footer}>
-      © 2025 愛戀婚禮策劃 LoveEver After Weddings. All rights reserved.
+      © 2025 小高婚禮策劃 LoveEver After Weddings. All rights reserved.
     </footer>
   );
 };

@@ -22,7 +22,8 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        localStorage.setItem("userEmail", email); // 儲存登入者的 email
+        localStorage.setItem("userId", data.user.id);    // ✅ 正確儲存顧客id
+        localStorage.setItem("userEmail", data.user.email);    // ✅ 儲存顧客 ID（給預約使用）
         alert("登入成功！");
         navigate("/"); // 回首頁
       }
