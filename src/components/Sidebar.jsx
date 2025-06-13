@@ -49,7 +49,7 @@ export default function Sidebar() {
             </Link>
           </li>
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer"> 
-            <Link to="/services/ai-workflow" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
+            <Link to="/process" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
               <Lightbulb size={18} />
               <span>AI流程設計</span>
             </Link>

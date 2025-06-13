@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 import HomePage from './pages/HomePages';
 import ServicePage from './pages/ServicePage';
+import DesignProcess from './pages/DesignProcess';
 import CustomerPage from './pages/CustomerPage';
 import FinancePage from './pages/FinancePage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -27,6 +28,7 @@ function App() {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/service" element={<ServicePage />} />
+              <Route path="/process" element={<DesignProcess />} />
               <Route path="/customer" element={<CustomerPage />} />
               <Route path="/finance" element={<FinancePage />} />
               <Route path="/login" element={<LoginPage />} />
