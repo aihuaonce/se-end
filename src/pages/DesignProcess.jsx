@@ -10,7 +10,6 @@ import moment from 'moment';
 // 引入我們手寫的自定義日曆組件
 import CustomMonthPickerCalendar from '../components/CustomMonthPickerCalendar';
 
-
 function App() {
   const [allCustomers, setAllCustomers] = useState([]);
   const [filteredAndSearchedCustomers, setFilteredAndSearchedCustomers] = useState([]);
@@ -50,11 +49,14 @@ function App() {
   const minAllowedDate = useMemo(() => new Date(1990, 0, 1), []); // 1990年1月1日
   const maxAllowedDate = useMemo(() => new Date(new Date().getFullYear(), 11, 31), []); // 當前年份的12月31日
 
-  // ==== 新增：提取所有客戶的婚禮日期 ====
-  const allWeddingDates = useMemo(() => {
+  // ==== 修改：提取所有客戶的婚禮日期及狀態 ====
+  const allWeddingEvents = useMemo(() => {
     return allCustomers
-      .map(customer => customer.wedding_date ? moment(customer.wedding_date).startOf('day').toDate() : null)
-      .filter(Boolean); // 過濾掉無效或空的日期
+      .filter(customer => customer.wedding_date) // 只考慮有婚禮日期的客戶
+      .map(customer => ({
+        date: moment(customer.wedding_date).startOf('day').toDate(), // 確保日期是當天的開始，方便比較
+        status: customer.status // 包含客戶的狀態
+      }));
   }, [allCustomers]);
 
 
@@ -511,7 +513,7 @@ function App() {
               minDate={minAllowedDate}
               maxDate={maxAllowedDate}
               onClear={handleClearCalendarFilter}
-              weddingDates={allWeddingDates}
+              weddingEvents={allWeddingEvents}
             />
           </div>
         </div>

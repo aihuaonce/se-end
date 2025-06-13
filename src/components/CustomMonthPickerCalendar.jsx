@@ -8,8 +8,8 @@ const MONTH_NAMES = [
   '七月', '八月', '九月', '十月', '十一月', '十二月'
 ];
 
-// 引入 onClear prop 和 weddingDates prop
-function CustomMonthPickerCalendar({ selectedMonth, onSelectMonth, minDate, maxDate, onClear, weddingDates }) {
+// 引入 onClear prop 和 weddingEvents prop
+function CustomMonthPickerCalendar({ selectedMonth, onSelectMonth, minDate, maxDate, onClear, weddingEvents }) {
   // currentView: 'month' (顯示日期), 'year' (顯示月份), 'decade' (顯示年份)
   const [currentView, setCurrentView] = useState('month'); // 預設顯示月份的日期網格
   // displayDate: 決定日曆目前顯示的是哪個月/年/十年
@@ -22,6 +22,15 @@ function CustomMonthPickerCalendar({ selectedMonth, onSelectMonth, minDate, maxD
     }
     return moment(displayDate).startOf('day').toDate(); // 確保只保留年、月、日信息
   }, [displayDate]);
+
+  // ==== 新增：根據狀態獲取 Tailwind 顏色類別 ====
+  const getStatusColorClass = useCallback((status) => {
+    switch (status) {
+      case 'open': return 'bg-yellow-300 text-yellow-900'; // 未結案
+      case 'closed': return 'bg-green-300 text-green-900'; // 已結案
+      default: return ''; // 預設無特定顏色
+    }
+  }, []);
 
   // 處理點擊年份視圖中的月份
   const handleMonthClick = useCallback((monthDate) => {
@@ -84,8 +93,11 @@ function CustomMonthPickerCalendar({ selectedMonth, onSelectMonth, minDate, maxD
         ))}
         {calendarDays.map((dayObj, index) => {
           const isToday = moment(dayObj.date).isSame(moment(), 'day');
-          // ==== 新增：檢查是否為婚禮日期 ====
-          const isWeddingDate = weddingDates.some(wd => moment(wd).isSame(dayObj.date, 'day'));
+          // ==== 修改：找到該日期的婚禮事件，並獲取其狀態顏色 ====
+          const weddingEventForDay = weddingEvents.find(event =>
+            moment(event.date).isSame(dayObj.date, 'day')
+          );
+          const weddingStatusColorClass = weddingEventForDay ? getStatusColorClass(weddingEventForDay.status) : '';
 
 
           return (
@@ -94,7 +106,7 @@ function CustomMonthPickerCalendar({ selectedMonth, onSelectMonth, minDate, maxD
               className={`text-center p-2 rounded-md transition-colors duration-150
                           ${dayObj.isCurrentMonth ? 'text-gray-800' : 'text-gray-400'}
                           ${isToday ? 'bg-sky-200 font-bold' : ''}
-                          ${isWeddingDate && dayObj.isCurrentMonth ? 'bg-purple-300 text-purple-900 font-bold' : ''} 
+                          ${weddingStatusColorClass} ${weddingEventForDay ? 'font-bold' : ''} 
                           cursor-default`}
             >
               {dayObj.date.getDate()}
@@ -103,7 +115,7 @@ function CustomMonthPickerCalendar({ selectedMonth, onSelectMonth, minDate, maxD
         })}
       </div>
     );
-  }, [safeDisplayDate, selectedMonth, weddingDates]); // <-- 將 weddingDates 加入依賴陣列
+  }, [safeDisplayDate, weddingEvents, getStatusColorClass]); // <-- 將 weddingEvents 加入依賴陣列
 
   // 生成年份視圖 (顯示月份)
   const renderYearView = useCallback(() => {
@@ -234,7 +246,7 @@ function CustomMonthPickerCalendar({ selectedMonth, onSelectMonth, minDate, maxD
           onClick={handlePrev}
           className="px-2 py-1 rounded-md hover:bg-gray-200 text-gray-700 font-bold"
         >
-          
+          &lt;
         </button>
 
         <div
@@ -248,7 +260,7 @@ function CustomMonthPickerCalendar({ selectedMonth, onSelectMonth, minDate, maxD
           onClick={handleNext}
           className="px-2 py-1 rounded-md hover:bg-gray-200 text-gray-700 font-bold"
         >
-          
+          &gt;
         </button>
       </div>
 
