@@ -564,7 +564,7 @@ function App() {
                   <FiMenu />
                 </button>
                 <h1 className="text-2xl md:text-3xl font-semibold text-slate-700 md:ml-0 mx-auto text-center">
-                  客戶管理
+                  自動化賀卡寄送
                   {searchQuery ? ` (搜尋: "${searchQuery}")` : ` (${filterStatus === 'all' ? '全部' : filterStatus === 'open' ? '未結案' : '已結案'})`}
                 </h1>
                 <button
