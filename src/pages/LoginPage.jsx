@@ -22,7 +22,8 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        localStorage.setItem("userEmail", email); // 儲存登入者的 email
+        localStorage.setItem("userId", data.user.id);    
+        localStorage.setItem("userEmail", data.user.email);   
         alert("登入成功！");
         navigate("/"); // 回首頁
       }

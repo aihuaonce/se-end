@@ -8,15 +8,25 @@ router.post('/login', async (req, res) => {
 
     try {
         const [rows] = await pool.query(
-            'SELECT * FROM customer WHERE `電子信箱` = ? AND `密碼` = ?',
+            'SELECT * FROM customer WHERE 電子信箱 = ? AND 密碼 = ?',
             [email, password]
         );
 
         if (rows.length > 0) {
-            res.json({ success: true, message: '登入成功' });
+            const user = rows[0];
+            res.json({
+                success: true,
+                message: '登入成功',
+                user: {
+                    id: user['顧客id'],
+                    name: user['顧客姓名'],
+                    email: user['電子信箱'],
+                },
+            });
         } else {
             res.status(401).json({ success: false, message: '帳號或密碼錯誤' });
         }
+
     } catch (err) {
         console.error(err);
         res.status(500).json({ success: false, message: '伺服器錯誤' });
@@ -39,7 +49,7 @@ router.post('/register', async (req, res) => {
     try {
         // 檢查是否已有相同的信箱註冊過
         const [existing] = await pool.query(
-            'SELECT * FROM customer WHERE `電子信箱` = ?',
+            'SELECT * FROM customer WHERE 電子信箱 = ?',
             [電子信箱]
         );
 
@@ -55,6 +65,7 @@ router.post('/register', async (req, res) => {
             [顧客姓名, 電話, 電子信箱, 喜好風格, 生日, 建檔時間, 密碼]
         );
 
+
         res.json({ success: true, message: '註冊成功' });
     } catch (err) {
         console.error(err);
@@ -67,7 +78,11 @@ router.get("/api/profile", async (req, res) => {
 
     try {
         const [rows] = await pool.query(
-            "SELECT * FROM customer WHERE `電子信箱` = ?",
+            `SELECT 顧客姓名, 電話, 電子信箱, 喜好風格, 
+              DATE_FORMAT(生日, '%Y-%m-%d') AS 生日, 
+              DATE_FORMAT(建檔時間, '%Y-%m-%d') AS 建檔時間 
+       FROM customer 
+       WHERE 電子信箱 = ?`,
             [email]
         );
 
@@ -83,4 +98,5 @@ router.get("/api/profile", async (req, res) => {
 });
 
 
-module.exports = router;
+
+module.exports = router; 

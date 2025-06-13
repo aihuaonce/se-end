@@ -3,12 +3,13 @@ const express = require("express");
 const cors = require("cors");
 require('dotenv').config();
 
-const pool = require('./db');
+const pool = require('./db.js');
 
 const serviceRoutes = require('./routes/service');
 const syncRoutes = require('./routes/syncRoutes');
 const statusRoutes = require('./routes/statusRoutes');
 const joinRoutes = require('./routes/joinRoutes');
+const reserveRoutes = require('./routes/reserveRoutes');
 
 
 const app = express();
@@ -21,6 +22,7 @@ app.use('/customers', serviceRoutes);
 app.use('/sync-sheet-data', syncRoutes);
 app.use('/update-status', statusRoutes);
 app.use('/', joinRoutes);
+app.use('/', reserveRoutes);
 
 // 啟動伺服器
 const PORT = process.env.PORT || 5713; // 從 .env 讀取埠號，如果沒有則預設 5713

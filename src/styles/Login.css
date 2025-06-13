@@ -5,6 +5,7 @@
     background-color: white;
     border-radius: 1rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
 }
 
 .login-form {
@@ -36,7 +37,7 @@
 
 .form-group input:focus {
     outline: none;
-    border-color: #ec4899;
+    /*border-color: #ec4899;*/
     box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.2);
 }
 
@@ -51,4 +52,12 @@
     color: #ec4899;
     text-decoration: underline;
     cursor: pointer;
+}
+
+.hero-title {
+    font-size: 28px;
+    margin-bottom: 20px;
+    color: #cb8a90;
+    text-align: left;
+    font-weight: bold;
 }
