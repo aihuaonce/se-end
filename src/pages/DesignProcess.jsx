@@ -1,3 +1,5 @@
+// ServicePage.jsx
+
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import validator from 'validator';
@@ -5,8 +7,9 @@ import { FiMenu } from 'react-icons/fi';
 import '../styles/Service.css';
 import moment from 'moment';
 
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
+// 引入我們手寫的自定義日曆組件
+import CustomMonthPickerCalendar from '../components/CustomMonthPickerCalendar';
+
 
 function App() {
   const [allCustomers, setAllCustomers] = useState([]);
@@ -23,7 +26,7 @@ function App() {
     wedding_date: "",
     wedding_location: "",
     form_link: "",
-});
+  });
 
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,11 +43,20 @@ function App() {
   const [itemsPerPage] = useState(7);
 
   // ==== 日曆相關的狀態 ====
-  const [selectedDate, setSelectedDate] = useState(null); // 會是 Date 物件 (該月份的第一天)
+  // selectedDate 會是一個 Date 物件 (該月份的第一天，用於篩選)
+  const [selectedDate, setSelectedDate] = useState(null);
 
-  // 限制日曆的年份範圍
+  // 限制日曆的年份範圍 (用於傳遞給 CustomMonthPickerCalendar)
   const minAllowedDate = useMemo(() => new Date(1990, 0, 1), []); // 1990年1月1日
   const maxAllowedDate = useMemo(() => new Date(new Date().getFullYear(), 11, 31), []); // 當前年份的12月31日
+
+  // ==== 新增：提取所有客戶的婚禮日期 ====
+  const allWeddingDates = useMemo(() => {
+    return allCustomers
+      .map(customer => customer.wedding_date ? moment(customer.wedding_date).startOf('day').toDate() : null)
+      .filter(Boolean); // 過濾掉無效或空的日期
+  }, [allCustomers]);
+
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
@@ -102,7 +114,7 @@ function App() {
 
     // 3. 最後根據 selectedDate (月份) 篩選
     if (selectedDate) {
-      // 將選定的日期和客戶的婚禮日期都格式化為 'YYYY-MM' (年-月) 進行比較
+      // 將選定的月份和客戶的婚禮日期都格式化為 'YYYY-MM' (年-月) 進行比較
       const selectedMonthYear = moment(selectedDate).format('YYYY-MM');
       result = result.filter(customer =>
         customer.wedding_date && moment(customer.wedding_date).format('YYYY-MM') === selectedMonthYear
@@ -259,28 +271,18 @@ function App() {
     }
   };
 
-  // ==== 處理日曆月份選取 (onChange 只會在選取到 minDetail 層級時觸發) ====
-  const handleCalendarChange = (date) => {
-    // 當 maxDetail 為 'decade' 且 minDetail 為 'month' 時，
-    // 從 'year' 視圖點擊月份會觸發 onChange，並將視圖切換到 'month'
-    // 從 'decade' 視圖點擊年份會觸發 onChange，並將視圖切換到 'year'
-    // 我們只在確實選擇到月份時才更新 selectedDate
-    // 因此，我們檢查傳入的 date 是否與我們期望的月份粒度匹配
-    if (moment(date).isValid() && date.getDate() === 1) { // 假設選取月份時，會傳回該月份的第一天
-      setSelectedDate(date);
-      setFilterStatus('all');
-      setSearchQuery('');
-      setSearchBy('name');
-    }
-    // 如果是點擊年份，只切換視圖，不改變篩選日期
-    // react-calendar 會自動處理視圖切換
+  // ==== 處理 CustomMonthPickerCalendar 選擇月份的回調 ====
+  const handleMonthSelect = (date) => {
+    setSelectedDate(date); // date 已經是該月份的第一天
+    setFilterStatus('all'); // 當選擇月份時，將狀態篩選重設為 'all'
+    setSearchQuery(''); // 當選擇月份時，清空搜尋關鍵字
+    setSearchBy('name');
   };
 
-
-  // ==== 清除日曆日期篩選 ====
-  const clearDateFilter = () => {
+  // 清除日曆篩選的回調函式 (從 CustomMonthPickerCalendar 呼叫)
+  const handleClearCalendarFilter = useCallback(() => {
     setSelectedDate(null);
-  };
+  }, []);
 
 
   if (loading) {
@@ -318,7 +320,7 @@ function App() {
               <h1 className="text-2xl md:text-3xl font-semibold text-slate-700 md:ml-0 mx-auto text-center">
                 自動化賀卡寄送
                 {searchQuery ? ` (搜尋: "${searchQuery}")` :
-                  selectedDate ? ` (篩選月份: ${moment(selectedDate).format('YYYY年M月')})` : // 修改為顯示月份
+                  selectedDate ? ` (篩選月份: ${moment(selectedDate).format('YYYY年M月')})` :
                     ` (${filterStatus === 'all' ? '全部' : filterStatus === 'open' ? '未結案' : '已結案'})`}
               </h1>
               <button
@@ -503,29 +505,14 @@ function App() {
         <div className="w-full md:w-auto flex-shrink-0 flex flex-col space-y-4 items-center">
           <div className="bg-white shadow-lg rounded-lg p-4 w-full max-w-sm md:max-w-none">
             <h2 className="text-lg md:text-xl font-semibold text-center text-slate-700 mb-4">依婚禮月份篩選</h2>
-            <Calendar
-              onChange={handleCalendarChange} // 當選取日期時觸發
-              value={selectedDate} // 日曆當前顯示的日期
-              className="mx-auto react-calendar" // 讓日曆在容器中置中，並可自訂樣式
-              locale="zh-TW" // 設定為台灣中文語系
-              view="month" // 初始顯示年份中的月份，方便選取月份
-              maxDetail="year" // 允許最高顯示到十年視圖 (可選擇年份)
-              minDetail="month"
-              minDate={minAllowedDate} // 設定最小日期 (1990/01/01)
-              maxDate={maxAllowedDate} // 設定最大日期 (當前年份12月31日)
-              onClickDay={() => {}} // 點擊日期的回調，設為空函式阻止任何操作
+            <CustomMonthPickerCalendar
+              selectedMonth={selectedDate}
+              onSelectMonth={handleMonthSelect}
+              minDate={minAllowedDate}
+              maxDate={maxAllowedDate}
+              onClear={handleClearCalendarFilter}
+              weddingDates={allWeddingDates}
             />
-            {selectedDate && (
-              <div className="mt-4 text-center">
-                <p className="text-slate-600 text-sm mb-2">已選擇月份: <span className="font-semibold">{moment(selectedDate).format('YYYY年M月')}</span></p>
-                <button
-                  onClick={clearDateFilter}
-                  className="bg-red-500 text-white px-3 py-1 rounded-md shadow hover:bg-red-600 transition-colors duration-200 text-sm"
-                >
-                  清除月份篩選
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
