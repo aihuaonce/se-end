@@ -320,7 +320,7 @@ function App() {
                 <FiMenu />
               </button>
               <h1 className="text-2xl md:text-3xl font-semibold text-slate-700 md:ml-0 mx-auto text-center">
-                自動化賀卡寄送
+                AI流程設計
                 {searchQuery ? ` (搜尋: "${searchQuery}")` :
                   selectedDate ? ` (篩選月份: ${moment(selectedDate).format('YYYY年M月')})` :
                     ` (${filterStatus === 'all' ? '全部' : filterStatus === 'open' ? '未結案' : '已結案'})`}

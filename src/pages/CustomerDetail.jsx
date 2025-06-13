@@ -58,7 +58,7 @@ function CustomerDetails() {
     // 獨立函式用於抓取賓客資料，使用 useCallback進行 memoize
     const fetchSheetData = useCallback(async () => {
         try {
-            const sheetDataRes = await fetch(`http://localhost:5713/customers/${id}/sheet-data`);
+            const sheetDataRes = await fetch(`http://localhost:5713/customers/${id}/guests`);
             if (!sheetDataRes.ok) {
                 setSheetData([]);
                 console.warn("抓取賓客資料 API 返回非 OK 狀態:", sheetDataRes.status);
