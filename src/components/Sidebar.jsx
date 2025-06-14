@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { LayoutDashboard, Users, Bus, DollarSign, Calendar, Phone, MessageSquare, Clock, Send, Lightbulb, FileText } from "lucide-react"; // 導入更多合適的圖標
+import { LayoutDashboard, Users, Bus, DollarSign, Calendar, Phone, MessageSquare, Clock, Send, Lightbulb, FileText, Wallet, Footprints, Receipt, Calculator, LineChart } from "lucide-react"; // 導入更多合適的圖標
 
 export default function Sidebar() {
   return (
@@ -72,37 +72,37 @@ export default function Sidebar() {
           </li>
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
             <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
-              <LayoutDashboard size={18} />
+              <Receipt size={18} />
               <span>發票管理</span>
             </Link>
           </li>
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
             <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
-              <LayoutDashboard size={18} />
+              <Users size={18} />
               <span>客戶管理</span>
             </Link>
           </li>
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
             <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
-              <LayoutDashboard size={18} />
+              <Footprints size={18} />
               <span>付款記錄</span>
             </Link>
           </li>
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
             <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
-              <LayoutDashboard size={18} />
+              <Calculator size={18} />
               <span>支出管理</span>
             </Link>
           </li>
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
             <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
-              <LayoutDashboard size={18} />
+              <Wallet size={18} />
               <span>零用金收支管理</span>
             </Link>
           </li>
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
             <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
-              <LayoutDashboard size={18} />
+              <LineChart size={18} />
               <span>月報表</span>
             </Link>
           </li>
