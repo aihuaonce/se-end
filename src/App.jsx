@@ -1,11 +1,11 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom'; // 引入 Outlet, useLocation, useNavigate
 
 import HomePage from './pages/HomePages';
 import ServicePage from './ServicePages/ServicePage';
 import DesignProcess from './ServicePages/DesignProcess';
 import CustomerPage from './pages/CustomerPage';
-import FinancePage from './pages/FinancePage';
+import FinancePage from './FinancePage/FinancePage'; 
 import NotFoundPage from './pages/NotFoundPage';
 import LoginPage from './pages/LoginPage';
 import CustomerDetails from './ServicePages/CustomerDetail';
@@ -14,35 +14,70 @@ import PersonDataPage from "./pages/PersonDataPage";
 import BookingPage from "./pages/BookingPage";
 import Header from './components/Header';
 import Footer from './components/Footer';
-import Sidebar from './components/Sidebar';
+import Sidebar from './components/Sidebar'; 
+
+function AppLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // 導航到 /finance 時，自動重定向到 /finance/overview
+  useEffect(() => {
+    if (location.pathname === '/finance' || location.pathname === '/finance/') {
+      navigate('/finance/overview', { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
+
+  // 檢查是否是登入或註冊頁面，這些頁面不需要 Sidebar 和 Header/Footer
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+
+  if (isAuthPage) {
+    // 這些頁面直接渲染，不包含佈局
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        {/* 如果用戶直接訪問這些路徑以外的，例如 /finance 而未登入，也應該被導向登入頁面，
+            但目前只是簡單地判斷路徑，您可能需要更完善的認證邏輯 */}
+      </Routes>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-screen">
+      <Header /> 
+
+      <div className="flex flex-grow">
+        <Sidebar /> {/* 共享的 Sidebar */}
+        <main className="flex-grow p-4 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
+
+      <Footer />
+    </div>
+  );
+}
 
 function App() {
   return (
     <Router>
-      <div className="flex flex-col h-screen">
-        <Header />
+      <Routes>
+        <Route path="/" element={<AppLayout />}>
+          <Route index element={<HomePage />} /> 
+          <Route path="service" element={<ServicePage />} />
+          <Route path="process" element={<DesignProcess />} />
+          <Route path="customer" element={<CustomerPage />} />
+          <Route path="customer/:id" element={<CustomerDetails />} />
+          <Route path="persondata" element={<PersonDataPage />} />
+          <Route path="booking" element={<BookingPage />} />
+          <Route path="finance/*" element={<FinancePage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-        <div className="flex flex-grow">
-          <Sidebar />
-          <main className="flex-grow p-4 overflow-y-auto">
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/service" element={<ServicePage />} />
-              <Route path="/process" element={<DesignProcess />} />
-              <Route path="/customer" element={<CustomerPage />} />
-              <Route path="/finance" element={<FinancePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/customer/:id" element={<CustomerDetails />} />
-              <Route path="*" element={<NotFoundPage />} /> 
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/persondata" element={<PersonDataPage />} />
-              <Route path="/booking" element={<BookingPage />} />
-            </Routes>
-          </main>
-        </div>
-
-        <Footer />
-      </div>
+      </Routes>
     </Router>
   );
 }
