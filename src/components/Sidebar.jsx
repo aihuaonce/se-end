@@ -67,13 +67,43 @@ export default function Sidebar() {
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
             <Link to="/finance" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
               <DollarSign size={18} />
-              <span>財務總覽</span>
+              <span>概覽</span>
             </Link>
           </li>
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
             <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
               <LayoutDashboard size={18} />
-              <span>付款紀錄</span>
+              <span>發票管理</span>
+            </Link>
+          </li>
+          <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
+            <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
+              <LayoutDashboard size={18} />
+              <span>客戶管理</span>
+            </Link>
+          </li>
+          <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
+            <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
+              <LayoutDashboard size={18} />
+              <span>付款記錄</span>
+            </Link>
+          </li>
+          <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
+            <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
+              <LayoutDashboard size={18} />
+              <span>支出管理</span>
+            </Link>
+          </li>
+          <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
+            <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
+              <LayoutDashboard size={18} />
+              <span>零用金收支管理</span>
+            </Link>
+          </li>
+          <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
+            <Link to="/finance/payments" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
+              <LayoutDashboard size={18} />
+              <span>月報表</span>
             </Link>
           </li>
         </ul>
