@@ -5,18 +5,9 @@ export default function Sidebar() {
   const location = useLocation(); 
 
   const getLinkClassName = (path) => {
-    const isOverviewActive = (path === '/finance/overview' && (location.pathname === '/finance' || location.pathname === '/finance/overview'));
-    const isSubPathActive = (path !== '/finance/overview' && location.pathname.startsWith(path));
-    const isExactPathActive = (path === '/' || !path.startsWith('/finance')) && location.pathname === path;
-
-    const isActive = isOverviewActive || isSubPathActive || isExactPathActive;
-
     return `
       flex items-center gap-2 w-full py-2 px-4 rounded transition duration-200 ease-in-out
-      ${isActive
-        ? 'bg-white text-[#C9C2B2] font-semibold shadow-md' 
-        : 'hover:bg-gray-100 hover:text-[#B7B09F] text-[#CB8A90]' 
-      }
+      hover:bg-gray-100 hover:text-[#B7B09F] text-[#CB8A90] 
     `;
   };
 
