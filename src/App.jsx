@@ -2,19 +2,19 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 import HomePage from './pages/HomePages';
-import ServicePage from './pages/ServicePage';
-import DesignProcess from './pages/DesignProcess';
+import ServicePage from './ServicePages/ServicePage';
+import DesignProcess from './ServicePages/DesignProcess';
 import CustomerPage from './pages/CustomerPage';
 import FinancePage from './pages/FinancePage';
 import NotFoundPage from './pages/NotFoundPage';
 import LoginPage from './pages/LoginPage';
-import CustomerDetails from './pages/CustomerDetail';
+import CustomerDetails from './ServicePages/CustomerDetail';
 import RegisterPage from './pages/RegisterPage';
 import PersonDataPage from "./pages/PersonDataPage";
 import BookingPage from "./pages/BookingPage";
 import Header from './components/Header';
 import Footer from './components/Footer';
-import Sidebar from './components/Sidebar'; 
+import Sidebar from './components/Sidebar';
 
 function App() {
   return (
