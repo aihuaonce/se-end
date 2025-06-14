@@ -2,8 +2,6 @@
 CREATE DATABASE IF NOT EXISTS marry CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE marry;
 
--- ⚠️ 強烈建議在開發環境使用。在生產環境執行前請務必備份資料！
--- 以正確的順序刪除表以避免外來鍵約束問題
 DROP VIEW IF EXISTS project_financial_overview;
 DROP VIEW IF EXISTS monthly_revenue;
 DROP VIEW IF EXISTS overdue_invoices;
@@ -13,16 +11,15 @@ DROP VIEW IF EXISTS monthly_financial_summary;
 DROP TABLE IF EXISTS journal_entry_lines;
 DROP TABLE IF EXISTS journal_entries;
 DROP TABLE IF EXISTS invoice_line_items;
-DROP TABLE IF EXISTS invoices;
 DROP TABLE IF EXISTS customer_payments;
 DROP TABLE IF EXISTS wedding_expenses;
 DROP TABLE IF EXISTS expense_categories;
 DROP TABLE IF EXISTS accounts;
-DROP TABLE IF EXISTS wedding_projects;
-DROP TABLE IF EXISTS customers;
 DROP TABLE IF EXISTS vendors;
 DROP TABLE IF EXISTS bank_accounts;
-
+DROP TABLE IF EXISTS invoices;
+DROP TABLE IF EXISTS wedding_projects;
+DROP TABLE IF EXISTS customers;
 
 -- 1️⃣ 客戶資料表 (Customers)
 -- 用於記錄所有與公司進行交易的客戶資訊
@@ -107,25 +104,6 @@ CREATE TABLE wedding_projects (
         ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='婚禮專案表';
 
--- 7️⃣ 顧客付款紀錄表 (Customer Payments)
--- 記錄客戶針對專案或發票的實際付款
-CREATE TABLE customer_payments (
-    payment_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '付款ID',
-    project_id INT COMMENT '對應婚禮專案(project_id)', -- 可空，因為可能有些付款不直接掛鉤專案或稍後分配
-    customer_id INT NOT NULL COMMENT '對應顧客資料(customer_id)',
-    payment_date DATE NOT NULL COMMENT '實際付款日期',
-    amount DECIMAL(12,2) NOT NULL COMMENT '實際付款金額',
-    method ENUM('現金','銀行轉帳','信用卡','線上付款','其他') NOT NULL COMMENT '付款方式', -- 新增線上付款
-    status ENUM('已付款','未付款','退款') NOT NULL DEFAULT '已付款' COMMENT '付款狀態', -- 初始為已付款
-    notes VARCHAR(255) COMMENT '付款備註',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最後更新時間',
-    FOREIGN KEY (project_id) REFERENCES wedding_projects(project_id)
-        ON UPDATE CASCADE ON DELETE SET NULL,
-    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
-        ON UPDATE CASCADE ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='顧客付款紀錄表';
-
 
 -- 8️⃣ 發票主表 (Invoices)
 -- 記錄向客戶開立的發票，連結到客戶和顧客付款紀錄
@@ -138,6 +116,7 @@ CREATE TABLE invoices (
     total_amount DECIMAL(12,2) NOT NULL COMMENT '所有明細加總的總金額',
     amount_paid DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT '已付款金額',
     status ENUM('未付','部分付款','已付','逾期','作廢') NOT NULL DEFAULT '未付' COMMENT '發票狀態',
+    total_installments INT DEFAULT 1 COMMENT '預計分期數', -- 新增分期數
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最後更新時間',
     FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
@@ -145,6 +124,29 @@ CREATE TABLE invoices (
     FOREIGN KEY (project_id) REFERENCES wedding_projects(project_id)
         ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='發票主表';
+
+-- 7️⃣ 顧客付款紀錄表 (Customer Payments)
+-- 記錄客戶針對專案或發票的實際付款
+CREATE TABLE customer_payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '付款ID',
+    project_id INT COMMENT '對應婚禮專案(project_id)', -- 可空，因為可能有些付款不直接掛鉤專案或稍後分配
+    customer_id INT NOT NULL COMMENT '對應顧客資料(customer_id)',
+    invoice_id INT COMMENT '對應發票ID', -- 新增，用於明確連結付款到發票
+    payment_date DATE NOT NULL COMMENT '實際付款日期',
+    amount DECIMAL(12,2) NOT NULL COMMENT '實際付款金額',
+    method ENUM('現金','銀行轉帳','信用卡','線上付款','其他') NOT NULL COMMENT '付款方式', -- 新增線上付款
+    status ENUM('已付款','未付款','退款') NOT NULL DEFAULT '已付款' COMMENT '付款狀態', -- 初始為已付款
+    notes VARCHAR(255) COMMENT '付款備註',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最後更新時間',
+    FOREIGN KEY (project_id) REFERENCES wedding_projects(project_id)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) -- 新增外來鍵約束
+        ON UPDATE CASCADE ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='顧客付款紀錄表';
+
 
 -- 9️⃣ 發票明細表 (Invoice Line Items)
 -- 記錄每張發票的具體項目明細
@@ -193,7 +195,7 @@ CREATE TABLE journal_entries (
     entry_date DATE NOT NULL COMMENT '交易日期',
     description VARCHAR(255) NOT NULL COMMENT '分錄摘要',
     reference_id VARCHAR(50) COMMENT '參考文件ID (例如發票ID, 付款ID, 費用ID)',
-    reference_type ENUM('invoice', 'customer_payment', 'wedding_expense', 'other_revenue', 'other_expense', 'vendor_bill', 'other') COMMENT '參考文件類型',
+    reference_type ENUM('invoice', 'customer_payment', 'wedding_expense', 'petty_cash_deposit', 'other_revenue', 'other_expense', 'vendor_bill', 'other') COMMENT '參考文件類型', -- 新增 petty_cash_deposit
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '建立時間',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最後更新時間'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='日記帳分錄主表';
@@ -221,7 +223,9 @@ CREATE TABLE journal_entry_lines (
 INSERT INTO customers (name, contact_person, phone, email, address) VALUES
 ('王小明有限公司', '王小明', '0912-345678', 'wayne@example.com', '台北市信義區忠孝東路一段1號'),
 ('李小華貿易', '李小華', '0933-223344', 'lixh@example.com', '新北市板橋區文化路一段100號'),
-('陳大同實業', '陳大同', '0955-667788', 'chendt@example.com', '高雄市苓雅區中華路二段50號');
+('陳大同實業', '陳大同', '0955-667788', 'chendt@example.com', '高雄市苓雅區中華路二段50號'),
+('林美麗婚顧', '林美麗', '0966-889900', 'linml@example.com', '桃園市中壢區中正路10號');
+
 
 -- 供應商範例資料
 INSERT INTO vendors (name, contact_person, phone, email, address) VALUES
@@ -249,7 +253,7 @@ INSERT INTO accounts (account_number, name, type, normal_balance, description) V
 ('5030', '辦公用品費', '費用', '借', '辦公室用品費用'),
 ('5040', '交通費用', '費用', '借', '員工出差、業務交通費用'),
 ('5050', '餐飲娛樂費', '費用', '借', '餐飲和娛樂費用'),
-('5060', '花藝佈置費', '費用', '借', '婚禮花藝佈置費用'); -- 新增花藝佈置費用
+('5060', '花藝佈置費', '費用', '借', '婚禮花藝佈置費用');
 
 -- 銀行帳戶範例資料
 INSERT INTO bank_accounts (account_name, bank_name, account_number, currency, opening_balance, current_balance) VALUES
@@ -269,111 +273,144 @@ INSERT INTO expense_categories (name, description) VALUES
 INSERT INTO wedding_projects (project_name, customer_id, start_date, end_date, total_budget, status, notes) VALUES
 ('張陳聯姻豪華婚宴', (SELECT customer_id FROM customers WHERE name='王小明有限公司'), '2025-09-01', '2025-09-01', 500000.00, '進行中', '客戶要求高標準服務'),
 ('李黃溫馨小型婚禮', (SELECT customer_id FROM customers WHERE name='李小華貿易'), '2025-10-15', '2025-10-15', 150000.00, '規劃中', '預算有限，追求溫馨氛圍'),
-('趙錢世紀慶典', (SELECT customer_id FROM customers WHERE name='陳大同實業'), '2025-08-01', '2025-08-02', 800000.00, '規劃中', '大型戶外慶典');
+('趙錢世紀慶典', (SELECT customer_id FROM customers WHERE name='陳大同實業'), '2025-08-01', '2025-08-02', 800000.00, '規劃中', '大型戶外慶典'),
+('林陳幸福婚禮', (SELECT customer_id FROM customers WHERE name='林美麗婚顧'), '2025-11-20', '2025-11-20', 250000.00, '規劃中', '輕奢風格婚禮');
 
 
--- 發票主表範例資料 (更豐富的已付、部分付款、未付範例)
--- 發票 1: 已付清 (2025-05)
-INSERT INTO invoices (customer_id, project_id, issue_date, due_date, total_amount, amount_paid, status) VALUES
-((SELECT customer_id FROM customers WHERE name='王小明有限公司'), (SELECT project_id FROM wedding_projects WHERE project_name='張陳聯姻豪華婚宴'), '2025-05-01', '2025-05-15', 100000.00, 100000.00, '已付');
-SET @inv_id_1 = LAST_INSERT_ID();
+-- 發票主表範例資料 (已付、部分付款、未付、逾期，以及分期範例)
 
--- 發票 2: 部分付款 (2025-05)
-INSERT INTO invoices (customer_id, project_id, issue_date, due_date, total_amount, amount_paid, status) VALUES
-((SELECT customer_id FROM customers WHERE name='李小華貿易'), (SELECT project_id FROM wedding_projects WHERE project_name='李黃溫馨小型婚禮'), '2025-05-10', '2025-05-25', 50000.00, 20000.00, '部分付款');
-SET @inv_id_2 = LAST_INSERT_ID();
-
--- 發票 3: 未付 (2025-06)
-INSERT INTO invoices (customer_id, project_id, issue_date, due_date, total_amount, amount_paid, status) VALUES
-((SELECT customer_id FROM customers WHERE name='王小明有限公司'), (SELECT project_id FROM wedding_projects WHERE project_name='張陳聯姻豪華婚宴'), '2025-06-01', '2025-06-15', 120000.00, 0.00, '未付');
-SET @inv_id_3 = LAST_INSERT_ID();
-
--- 發票 4: 逾期未付 (2025-04)
-INSERT INTO invoices (customer_id, project_id, issue_date, due_date, total_amount, amount_paid, status) VALUES
-((SELECT customer_id FROM customers WHERE name='陳大同實業'), (SELECT project_id FROM wedding_projects WHERE project_name='趙錢世紀慶典'), '2025-04-10', '2025-04-25', 80000.00, 0.00, '逾期');
-SET @inv_id_4 = LAST_INSERT_ID();
-
--- 發票 5: 已付清 (不同月份, 2025-04)
-INSERT INTO invoices (customer_id, project_id, issue_date, due_date, total_amount, amount_paid, status) VALUES
-((SELECT customer_id FROM customers WHERE name='李小華貿易'), (SELECT project_id FROM wedding_projects WHERE project_name='李黃溫馨小型婚禮'), '2025-04-20', '2025-05-05', 30000.00, 30000.00, '已付');
-SET @inv_id_5 = LAST_INSERT_ID();
+-- 發票 A: 已付清 (單筆付款)
+INSERT INTO invoices (customer_id, project_id, issue_date, due_date, total_amount, amount_paid, status, total_installments) VALUES
+((SELECT customer_id FROM customers WHERE name='王小明有限公司'), (SELECT project_id FROM wedding_projects WHERE project_name='張陳聯姻豪華婚宴'), '2025-05-01', '2025-05-15', 100000.00, 100000.00, '已付', 1);
+SET @inv_id_A = LAST_INSERT_ID();
+INSERT INTO customer_payments (project_id, customer_id, invoice_id, payment_date, amount, method, status) VALUES
+((SELECT project_id FROM wedding_projects WHERE project_name='張陳聯姻豪華婚宴'), (SELECT customer_id FROM customers WHERE name='王小明有限公司'), @inv_id_A, '2025-05-12', 100000.00, '銀行轉帳', '已付款');
+SET @pay_id_A1 = LAST_INSERT_ID();
 
 
--- 顧客付款紀錄範例資料 (與發票資料對應)
--- 付款 1 (對應發票 1)
-INSERT INTO customer_payments (project_id, customer_id, payment_date, amount, method, status) VALUES
-((SELECT project_id FROM wedding_projects WHERE project_name='張陳聯姻豪華婚宴'), (SELECT customer_id FROM customers WHERE name='王小明有限公司'), '2025-05-12', 100000.00, '銀行轉帳', '已付款');
-SET @payment_id_1 = LAST_INSERT_ID();
-
--- 付款 2 (對應發票 2 - 部分付款)
-INSERT INTO customer_payments (project_id, customer_id, payment_date, amount, method, status) VALUES
-((SELECT project_id FROM wedding_projects WHERE project_name='李黃溫馨小型婚禮'), (SELECT customer_id FROM customers WHERE name='李小華貿易'), '2025-05-20', 20000.00, '現金', '已付款');
-SET @payment_id_2 = LAST_INSERT_ID();
-
--- 付款 3 (對應發票 5)
-INSERT INTO customer_payments (project_id, customer_id, payment_date, amount, method, status) VALUES
-((SELECT project_id FROM wedding_projects WHERE project_name='李黃溫馨小型婚禮'), (SELECT customer_id FROM customers WHERE name='李小華貿易'), '2025-04-30', 30000.00, '線上付款', '已付款');
-SET @payment_id_3 = LAST_INSERT_ID();
+-- 發票 B: 部分付款 (分兩期，已付第一期)
+INSERT INTO invoices (customer_id, project_id, issue_date, due_date, total_amount, amount_paid, status, total_installments) VALUES
+((SELECT customer_id FROM customers WHERE name='李小華貿易'), (SELECT project_id FROM wedding_projects WHERE project_name='李黃溫馨小型婚禮'), '2025-05-10', '2025-06-25', 80000.00, 40000.00, '部分付款', 2);
+SET @inv_id_B = LAST_INSERT_ID();
+INSERT INTO customer_payments (project_id, customer_id, invoice_id, payment_date, amount, method, status) VALUES
+((SELECT project_id FROM wedding_projects WHERE project_name='李黃溫馨小型婚禮'), (SELECT customer_id FROM customers WHERE name='李小華貿易'), @inv_id_B, '2025-05-20', 40000.00, '現金', '已付款');
+SET @pay_id_B1 = LAST_INSERT_ID();
 
 
--- 婚禮實際支出範例資料
+-- 發票 C: 未付 (預計分三期)
+INSERT INTO invoices (customer_id, project_id, issue_date, due_date, total_amount, amount_paid, status, total_installments) VALUES
+((SELECT customer_id FROM customers WHERE name='王小明有限公司'), (SELECT project_id FROM wedding_projects WHERE project_name='張陳聯姻豪華婚宴'), '2025-06-01', '2025-07-15', 150000.00, 0.00, '未付', 3);
+SET @inv_id_C = LAST_INSERT_ID();
+
+
+-- 發票 D: 逾期未付 (單筆付款)
+INSERT INTO invoices (customer_id, project_id, issue_date, due_date, total_amount, amount_paid, status, total_installments) VALUES
+((SELECT customer_id FROM customers WHERE name='陳大同實業'), (SELECT project_id FROM wedding_projects WHERE project_name='趙錢世紀慶典'), '2025-04-10', '2025-05-01', 90000.00, 0.00, '逾期', 1);
+SET @inv_id_D = LAST_INSERT_ID();
+
+
+-- 發票 E: 已付清 (跨月份, 分兩期, 已付兩期)
+INSERT INTO invoices (customer_id, project_id, issue_date, due_date, total_amount, amount_paid, status, total_installments) VALUES
+((SELECT customer_id FROM customers WHERE name='林美麗婚顧'), (SELECT project_id FROM wedding_projects WHERE project_name='林陳幸福婚禮'), '2025-03-25', '2025-04-10', 60000.00, 60000.00, '已付', 2);
+SET @inv_id_E = LAST_INSERT_ID();
+INSERT INTO customer_payments (project_id, customer_id, invoice_id, payment_date, amount, method, status) VALUES
+((SELECT project_id FROM wedding_projects WHERE project_name='林陳幸福婚禮'), (SELECT customer_id FROM customers WHERE name='林美麗婚顧'), @inv_id_E, '2025-04-05', 30000.00, '線上付款', '已付款');
+SET @pay_id_E1 = LAST_INSERT_ID();
+INSERT INTO customer_payments (project_id, customer_id, invoice_id, payment_date, amount, method, status) VALUES
+((SELECT project_id FROM wedding_projects WHERE project_name='林陳幸福婚禮'), (SELECT customer_id FROM customers WHERE name='林美麗婚顧'), @inv_id_E, '2025-04-15', 30000.00, '信用卡', '已付款');
+SET @pay_id_E2 = LAST_INSERT_ID();
+
+
+-- 婚禮實際支出範例資料 (多樣化日期和項目)
 INSERT INTO wedding_expenses (project_id, vendor_id, category_id, expense_item_description, amount, expense_date, vendor_invoice_number, payment_method, responsible_person, notes) VALUES
-((SELECT project_id FROM wedding_projects WHERE project_name='張陳聯姻豪華婚宴'), (SELECT vendor_id FROM vendors WHERE name='豪華婚宴會館'), (SELECT category_id FROM expense_categories WHERE name='場地租賃'), '豪華婚宴場地費', 150000.00, '2025-05-01', 'VHM-202505-001', '銀行轉帳', '張經理', '豪華婚宴會館場地預訂費用'),
-((SELECT project_id FROM wedding_projects WHERE project_name='張陳聯姻豪華婚宴'), (SELECT vendor_id FROM vendors WHERE name='幸福攝影工作室'), (SELECT category_id FROM expense_categories WHERE name='人力服務'), '全天婚禮攝影師服務', 50000.00, '2025-05-05', 'PHOTO-202505-001', '信用卡', '黃先生', '婚禮攝影師預訂費用'),
+-- 2025-04
+((SELECT project_id FROM wedding_projects WHERE project_name='趙錢世紀慶典'), (SELECT vendor_id FROM vendors WHERE name='花好月圓花藝坊'), (SELECT category_id FROM expense_categories WHERE name='花藝佈置'), '慶典初期花藝設計費', 10000.00, '2025-04-01', 'FLORAL-202504-001', '銀行轉帳', '李專員', '趙錢慶典早期花藝諮詢與設計'),
+(NULL, (SELECT vendor_id FROM vendors WHERE name='電腦城'), (SELECT category_id FROM expense_categories WHERE name='用品採購'), '新購辦公電腦', 35000.00, '2025-04-10', 'PC-202504-001', '銀行轉帳', '王主管', '辦公室電腦更新'),
+-- 2025-05
+((SELECT project_id FROM wedding_projects WHERE project_name='張陳聯姻豪華婚宴'), (SELECT vendor_id FROM vendors WHERE name='豪華婚宴會館'), (SELECT category_id FROM expense_categories WHERE name='場地租賃'), '豪華婚宴場地費訂金', 150000.00, '2025-05-01', 'VHM-202505-001', '銀行轉帳', '張經理', '豪華婚宴會館場地預訂費用'),
+((SELECT project_id FROM wedding_projects WHERE project_name='張陳聯姻豪華婚宴'), (SELECT vendor_id FROM vendors WHERE name='幸福攝影工作室'), (SELECT category_id FROM expense_categories WHERE name='人力服務'), '全天婚禮攝影師訂金', 30000.00, '2025-05-05', 'PHOTO-202505-001', '信用卡', '黃先生', '婚禮攝影師預訂費用'),
+(NULL, NULL, (SELECT category_id FROM expense_categories WHERE name='餐飲娛樂'), '部門聚餐費', 2500.00, '2025-05-15', NULL, '現金', '陳會計', '月度部門慶祝'),
+-- 2025-06
 ((SELECT project_id FROM wedding_projects WHERE project_name='李黃溫馨小型婚禮'), (SELECT vendor_id FROM vendors WHERE name='文具大批發'), (SELECT category_id FROM expense_categories WHERE name='用品採購'), '婚禮邀請函製作', 3000.00, '2025-06-10', 'STAT-202506-001', '現金', '陳小姐', '邀請函及相關文具採購'),
-(NULL, NULL, (SELECT category_id FROM expense_categories WHERE name='餐飲娛樂'), '員工聚餐', 1200.00, '2025-06-11', NULL, '現金', '王經理', '慶祝專案達成'),
-((SELECT project_id FROM wedding_projects WHERE project_name='趙錢世紀慶典'), (SELECT vendor_id FROM vendors WHERE name='花好月圓花藝坊'), (SELECT category_id FROM expense_categories WHERE name='花藝佈置'), '慶典花藝佈置費用', 25000.00, '2025-07-15', 'FLORAL-202507-001', '銀行轉帳', '李專員', '世紀慶典的鮮花和佈置費用');
+(NULL, NULL, (SELECT category_id FROM expense_categories WHERE name='餐飲娛樂'), '員工咖啡費', 800.00, '2025-06-20', NULL, '現金', '王經理', '辦公室咖啡補給'),
+-- 2025-07
+((SELECT project_id FROM wedding_projects WHERE project_name='趙錢世紀慶典'), (SELECT vendor_id FROM vendors WHERE name='花好月圓花藝坊'), (SELECT category_id FROM expense_categories WHERE name='花藝佈置'), '慶典花藝佈置尾款', 25000.00, '2025-07-15', 'FLORAL-202507-002', '銀行轉帳', '李專員', '世紀慶典的鮮花和佈置尾款');
 
 
 -- 日記帳分錄及明細範例資料 (根據新的業務流程和表格)
 
--- 範例 1: 收到客戶付款 - 發票 1 (全額)
+-- 範例 A1: 收到客戶付款 - 發票 A (全額)
 INSERT INTO journal_entries (entry_date, description, reference_id, reference_type) VALUES
-('2025-05-12', '收到客戶款項 - 發票 #1 全額支付', @payment_id_1, 'customer_payment');
+('2025-05-12', '收到客戶款項 - 發票 #A 全額支付', @pay_id_A1, 'customer_payment');
 SET @last_entry_id = LAST_INSERT_ID();
 INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description) VALUES
 (@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1020'), 100000.00, 0.00, '銀行存款增加'),
-(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1200'), 0.00, 100000.00, '應收帳款減少 (發票 #1)');
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1200'), 0.00, 100000.00, '應收帳款減少 (發票 #A)');
 
--- 範例 2: 收到客戶付款 - 發票 2 (部分)
+-- 範例 B1: 收到客戶付款 - 發票 B (部分)
 INSERT INTO journal_entries (entry_date, description, reference_id, reference_type) VALUES
-('2025-05-20', '收到客戶款項 - 發票 #2 部分支付', @payment_id_2, 'customer_payment');
+('2025-05-20', '收到客戶款項 - 發票 #B 部分支付', @pay_id_B1, 'customer_payment');
 SET @last_entry_id = LAST_INSERT_ID();
 INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description) VALUES
-(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1010'), 20000.00, 0.00, '現金增加'),
-(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1200'), 0.00, 20000.00, '應收帳款減少 (發票 #2)');
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1010'), 40000.00, 0.00, '現金增加'),
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1200'), 0.00, 40000.00, '應收帳款減少 (發票 #B)');
 
--- 範例 3: 收到客戶付款 - 發票 5 (全額, 線上支付)
+-- 範例 E1: 收到客戶付款 - 發票 E (第一期, 線上支付)
 INSERT INTO journal_entries (entry_date, description, reference_id, reference_type) VALUES
-('2025-04-30', '收到客戶款項 - 發票 #5 全額支付 (線上)', @payment_id_3, 'customer_payment');
+('2025-04-05', '收到客戶款項 - 發票 #E 第一期 (線上)', @pay_id_E1, 'customer_payment');
 SET @last_entry_id = LAST_INSERT_ID();
 INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description) VALUES
 (@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1020'), 30000.00, 0.00, '銀行存款增加 (線上支付)'),
-(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1200'), 0.00, 30000.00, '應收帳款減少 (發票 #5)');
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1200'), 0.00, 30000.00, '應收帳款減少 (發票 #E 第一期)');
 
--- 範例 4: 支付婚禮費用 (豪華婚宴會館場地費)
+-- 範例 E2: 收到客戶付款 - 發票 E (第二期, 信用卡支付)
 INSERT INTO journal_entries (entry_date, description, reference_id, reference_type) VALUES
-('2025-05-01', '支付豪華婚宴會館場地費', (SELECT expense_id FROM wedding_expenses WHERE expense_item_description='豪華婚宴場地費'), 'wedding_expense');
+('2025-04-15', '收到客戶款項 - 發票 #E 第二期 (信用卡)', @pay_id_E2, 'customer_payment');
+SET @last_entry_id = LAST_INSERT_ID();
+INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description) VALUES
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1020'), 30000.00, 0.00, '銀行存款增加 (信用卡收款)'),
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1200'), 0.00, 30000.00, '應收帳款減少 (發票 #E 第二期)');
+
+
+-- 範例支出 1: 支付花藝設計費 (2025-04)
+INSERT INTO journal_entries (entry_date, description, reference_id, reference_type) VALUES
+('2025-04-01', '支付慶典初期花藝設計費', (SELECT expense_id FROM wedding_expenses WHERE expense_item_description='慶典初期花藝設計費'), 'wedding_expense');
+SET @last_entry_id = LAST_INSERT_ID();
+INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description) VALUES
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='5060'), 10000.00, 0.00, '花藝佈置費用增加'),
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1020'), 0.00, 10000.00, '銀行存款減少');
+
+-- 範例支出 2: 支付辦公電腦 (2025-04)
+INSERT INTO journal_entries (entry_date, description, reference_id, reference_type) VALUES
+('2025-04-10', '支付新購辦公電腦', (SELECT expense_id FROM wedding_expenses WHERE expense_item_description='新購辦公電腦'), 'wedding_expense');
+SET @last_entry_id = LAST_INSERT_ID();
+INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description) VALUES
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1500'), 35000.00, 0.00, '辦公設備增加'),
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1020'), 0.00, 35000.00, '銀行存款減少');
+
+-- 範例支出 3: 支付婚宴場地費訂金 (2025-05)
+INSERT INTO journal_entries (entry_date, description, reference_id, reference_type) VALUES
+('2025-05-01', '支付豪華婚宴會館場地費訂金', (SELECT expense_id FROM wedding_expenses WHERE expense_item_description='豪華婚宴場地費訂金'), 'wedding_expense');
 SET @last_entry_id = LAST_INSERT_ID();
 INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description) VALUES
 (@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='5010'), 150000.00, 0.00, '婚宴場地費增加'),
 (@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1020'), 0.00, 150000.00, '銀行存款減少');
 
--- 範例 5: 零用金支出 (員工聚餐)
+-- 範例支出 4: 零用金支出 - 部門聚餐費 (2025-05)
 INSERT INTO journal_entries (entry_date, description, reference_id, reference_type) VALUES
-('2025-06-11', '員工聚餐 (負責人: 王經理)', (SELECT expense_id FROM wedding_expenses WHERE expense_item_description='員工聚餐'), 'wedding_expense');
+('2025-05-15', '部門聚餐費', (SELECT expense_id FROM wedding_expenses WHERE expense_item_description='部門聚餐費'), 'wedding_expense');
 SET @last_entry_id = LAST_INSERT_ID();
 INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description) VALUES
-(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='5050'), 1200.00, 0.00, '餐飲費用增加'),
-(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1010'), 0.00, 1200.00, '現金減少');
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='5050'), 2500.00, 0.00, '餐飲娛樂費增加'),
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1010'), 0.00, 2500.00, '現金減少');
 
--- 範例 6: 支付花藝佈置費用 (趙錢世紀慶典)
+-- 範例支出 5: 零用金支出 - 員工咖啡費 (2025-06)
 INSERT INTO journal_entries (entry_date, description, reference_id, reference_type) VALUES
-('2025-07-15', '支付趙錢世紀慶典花藝佈置費用', (SELECT expense_id FROM wedding_expenses WHERE expense_item_description='慶典花藝佈置費用'), 'wedding_expense');
+('2025-06-20', '員工咖啡費', (SELECT expense_id FROM wedding_expenses WHERE expense_item_description='員工咖啡費'), 'wedding_expense');
 SET @last_entry_id = LAST_INSERT_ID();
 INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description) VALUES
-(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='5060'), 25000.00, 0.00, '花藝佈置費用增加'),
-(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1020'), 0.00, 25000.00, '銀行存款減少');
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='5050'), 800.00, 0.00, '餐飲娛樂費增加'),
+(@last_entry_id, (SELECT account_id FROM accounts WHERE account_number='1010'), 0.00, 800.00, '現金減少');
 
 
 -- 📊 建立檢視表 (View)
