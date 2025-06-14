@@ -6,7 +6,7 @@ import HomePage from './pages/HomePages';
 import ServicePageContent from './ServicePages/ServicePage';
 import DesignProcess from './ServicePages/DesignProcess';
 import CustomerPage from './pages/CustomerPage';
-import FinancePage from './FinancePage/FinancePage'; // 確保路徑正確
+import FinancePage from './FinancePage/FinancePage';
 import NotFoundPage from './pages/NotFoundPage';
 import LoginPage from './pages/LoginPage';
 import CustomerDetails from './ServicePages/CustomerDetail';
@@ -21,19 +21,15 @@ function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 導航到 /finance 時，自動重定向到 /finance/overview
   useEffect(() => {
     if (location.pathname === '/finance' || location.pathname === '/finance/') {
       navigate('/finance/overview', { replace: true });
     }
   }, [location.pathname, navigate]);
 
-
-  // 檢查是否是登入或註冊頁面，這些頁面不需要 Sidebar 和 Header/Footer
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
   if (isAuthPage) {
-    // 這些頁面直接渲染，不包含佈局
     return (
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -43,13 +39,12 @@ function AppLayout() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-screen"> 
       <Header /> 
-
-      <div className="flex flex-grow">
+      <div className="flex flex-grow min-h-0">
         <Sidebar />
-        <main className="flex-grow overflow-y-auto bg-white"> 
-          <div className="p-2 h-full"> 
+        <main className="flex-grow bg-slate-100 overflow-x-hidden overflow-y-auto flex flex-col min-w-0">
+          <div className="p-4 flex-grow min-h-0">
             <Outlet />
           </div>
         </main>
@@ -77,7 +72,6 @@ function App() {
         </Route>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-
       </Routes>
     </Router>
   );

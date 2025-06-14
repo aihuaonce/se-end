@@ -297,25 +297,15 @@ function DesignProcessContent() { // 將函數名從 App 改為 DesignProcessCon
   }
 
   return (
-    // 修正：移除 min-h-screen, py-8, px-4。將 bg-slate-100 改為 bg-white
-    // 這個頁面根 div 不應該有任何 padding，讓 App.jsx 的 p-2 包裹層提供
-    <div className="bg-white flex flex-col w-full h-full"> 
+    <div className="flex flex-col w-full h-full"> 
 
       {notification && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-md text-white ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
           {notification.message}
         </div>
       )}
-
-      {/* 主要內容容器：
-          - 保持 w-full max-w-screen-xl mx-auto flex flex-col md:flex-row
-          - 添加 flex-grow，讓它填充 DesignProcessContent 根元素的所有可用空間
-          - 移除這裡的 py-4 px-2，因為 App.jsx 已經提供了
-          - overflow-x-hidden 保持不變，用於防止內部水平溢出
-      */}
       <div className="w-full max-w-screen-xl mx-auto flex flex-col md:flex-row flex-grow overflow-x-hidden"> 
 
-        {/* 左側主表格區域：保持不變 */}
         <div className={`w-full md:w-3/4 bg-white shadow-lg rounded-lg p-6 md:p-8 mb-4 md:mb-0 md:mr-4 flex flex-col flex-grow`}> 
           <div className="flex-grow"> 
             <div className="flex justify-between items-center mb-8">
@@ -446,7 +436,7 @@ function DesignProcessContent() { // 將函數名從 App 改為 DesignProcessCon
                     <th className="py-3 px-4 border-b border-slate-400 text-sm md:text-lg font-semibold">操作</th>
                   </tr>
                 </thead>
-                <tbody> {/* <-- 這裡沒有 Droppable，可能回到了舊版本 */}
+                <tbody> 
                   {customersToDisplay.map((c, index) => (
                     <tr
                       key={c.id}
@@ -507,7 +497,6 @@ function DesignProcessContent() { // 將函數名從 App 改為 DesignProcessCon
           )}
         </div>
 
-        {/* 右側日曆區塊：保持不變 */}
         <div className="w-full md:w-auto flex-shrink-0 flex flex-col space-y-4">
           <div className="bg-white shadow-lg rounded-lg p-4 w-full max-w-sm md:max-w-none"> 
             <h2 className="text-lg md:text-xl font-semibold text-center text-slate-700 mb-4">依婚禮月份篩選</h2>

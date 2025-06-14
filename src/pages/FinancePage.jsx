@@ -364,7 +364,6 @@ export default function FinancePage() {
 
   return (
     <div className="min-h-screen flex font-sans">
-      {/* 側邊導航欄 - 移除圓角 */}
       <aside className="w-64 bg-[#C9C2B2] text-white p-6 shadow-lg">
         <h2 className="text-2xl font-bold mb-6 text-center">財務子系統</h2>
         <nav className="space-y-4">
@@ -389,7 +388,6 @@ export default function FinancePage() {
         </nav>
       </aside>
 
-      {/* 主內容區域 */}
       <main className="flex-1 bg-gray-100 p-8">
         {view === 'overview' && <FinanceOverview data={overview} monthlyReportData={monthlyReportData} onCardClick={handleOverviewCardClick} />}
         {view === 'invoices' && <InvoiceTable invoices={invoices} onInitiatePayment={handleInitiatePayment} />}
@@ -405,7 +403,6 @@ export default function FinancePage() {
         {view === 'monthlyReport' && <MonthlyReportTable reportData={monthlyReportData} monthlyReportRef={monthlyReportRef} onExportPdf={exportMonthlyReportPdf} />}
       </main>
 
-      {/* 新增支出彈窗 */}
       {showAddExpenseModal && (
         <AddExpenseModal
           onClose={() => setShowAddExpenseModal(false)}
@@ -417,7 +414,6 @@ export default function FinancePage() {
         />
       )}
 
-      {/* 付款彈窗 */}
       {showPaymentModal && selectedInvoice && (
         <PaymentModal
           invoice={selectedInvoice}
@@ -426,7 +422,6 @@ export default function FinancePage() {
         />
       )}
 
-      {/* 零用金存入彈窗 */}
       {showPettyCashDepositModal && (
         <DepositPettyCashModal
           onClose={() => setShowPettyCashDepositModal(false)}
@@ -434,7 +429,6 @@ export default function FinancePage() {
         />
       )}
 
-      {/* 概覽細項彈窗 */}
       {showOverviewDetailModal && (
         <OverviewDetailModal
           dataType={overviewDetailType}
@@ -443,7 +437,6 @@ export default function FinancePage() {
         />
       )}
 
-      {/* 客戶詳情彈窗 */}
       {showCustomerDetailModal && selectedCustomer && (
         <CustomerDetailModal
           customerData={selectedCustomer}
@@ -462,11 +455,10 @@ function FinanceOverview({ data, monthlyReportData, onCardClick }) {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <OverviewCard label="總營收" value={data.totalRevenue} onClick={() => onCardClick('revenue')} />
         <OverviewCard label="總支出" value={data.totalExpenses} onClick={() => onCardClick('expenses')} />
-        <OverviewCard label="代收款" value={data.totalReceivables} onClick={() => onCardClick('receivables')} /> {/* 更新標籤 */}
+        <OverviewCard label="代收款" value={data.totalReceivables} onClick={() => onCardClick('receivables')} /> 
         <OverviewCard label="發票總數" value={data.invoiceCount} onClick={() => onCardClick('invoiceCount')} />
       </div>
 
-      {/* 月度財務走勢圖 */}
       <h4 className="text-2xl font-bold mb-4 text-[#C9C2B2]">月度財務走勢</h4>
       <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
         {monthlyReportData && monthlyReportData.length > 0 ? (
@@ -724,7 +716,6 @@ function InvoiceTable({ invoices, onInitiatePayment }) {
                   </td>
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800">{inv.total_installments}</td>
                   <td className="p-3 whitespace-nowrap text-center space-x-2">
-                    {/* 只有未付或部分付款的發票顯示付款按鈕 */}
                     {(inv.paid === '未付' || inv.paid === '部分付款' || inv.paid === '逾期') && (
                       <button
                         onClick={() => onInitiatePayment(inv)}
@@ -947,7 +938,7 @@ function PaymentTable({ payments }) {
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.payment_date}</td>
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800 text-right">NT$ {p.amount?.toLocaleString()}</td>
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.method}</td>
-                  <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.invoice_id || 'N/A'}</td> {/* 顯示實際發票ID */}
+                  <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.invoice_id || 'N/A'}</td>
                   <td className="p-3 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${p.status === '已付款' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                       {p.status}
@@ -1204,7 +1195,6 @@ function MonthlyReportTable({ reportData, monthlyReportRef, onExportPdf }) {
           匯出月報表 (PDF)
         </button>
       </div>
-      {/* 使用 ref 綁定到要匯出的元素 */}
       <div ref={monthlyReportRef} className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 p-4">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-[#C9C2B2] text-white">
@@ -1326,7 +1316,6 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
       <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl transform scale-100 transition-transform duration-300">
         <h2 className="text-2xl font-bold mb-6 text-[#C9C2B2] text-center">新增支出</h2>
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 支出項目 (描述) */}
           <div className="col-span-2">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="expense_item_description">
               支出項目 (描述) <span className="text-red-500">*</span>
@@ -1342,7 +1331,6 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
             />
           </div>
 
-          {/* 金額 */}
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="amount">
               金額 <span className="text-red-500">*</span>
@@ -1360,7 +1348,6 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
             />
           </div>
 
-          {/* 負責人 */}
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="responsible_person">
               負責人 (可選)
@@ -1375,7 +1362,6 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
             />
           </div>
 
-          {/* 支出日期 */}
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="expense_date">
               支出日期 <span className="text-red-500">*</span>
@@ -1391,7 +1377,6 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
             />
           </div>
 
-          {/* 支出分類 */}
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="category_id">
               支出分類 <span className="text-red-500">*</span>
@@ -1411,7 +1396,6 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
             </select>
           </div>
 
-          {/* 會計科目 */}
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="accounting_account_id">
               會計科目 <span className="text-red-500">*</span>
@@ -1431,7 +1415,6 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
             </select>
           </div>
 
-          {/* 婚禮專案 */}
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="project_id">
               婚禮專案 (可選)
@@ -1450,7 +1433,6 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
             </select>
           </div>
 
-          {/* 供應商 */}
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="vendor_id">
               供應商 (可選)
@@ -1469,7 +1451,6 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
             </select>
           </div>
 
-          {/* 支付方式 */}
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="payment_method">
               支付方式 <span className="text-red-500">*</span>
@@ -1490,7 +1471,6 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
             </select>
           </div>
 
-          {/* 廠商發票號碼 */}
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="vendor_invoice_number">
               廠商發票號碼 (可選)
@@ -1505,7 +1485,6 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
             />
           </div>
 
-          {/* 備註 */}
           <div className="col-span-2">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="notes">
               備註 (可選)
@@ -1520,14 +1499,12 @@ function AddExpenseModal({ onClose, onExpenseAdded, categories, vendors, project
             ></textarea>
           </div>
 
-          {/* 訊息顯示 */}
           {message && (
             <div className="col-span-2 text-center py-2 text-sm">
               <p className={message.includes('失敗') ? 'text-red-500' : 'text-green-500'}>{message}</p>
             </div>
           )}
 
-          {/* 按鈕 */}
           <div className="col-span-2 flex justify-end space-x-4 mt-6">
             <button
               type="button"

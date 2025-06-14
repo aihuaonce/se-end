@@ -475,7 +475,6 @@ function CustomerDetails() {
 
     if (loading) {
         return (
-            // 移除 min-h-screen, bg-gray-100，改為 h-full bg-white
             <div className="flex justify-center items-center h-full bg-white">
                 <p className="text-gray-600 text-xl">載入中...</p>
             </div>
@@ -492,9 +491,7 @@ function CustomerDetails() {
     }
 
     return (
-        // 移除 min-h-screen, py-8, px-4。將 bg-gray-100 改為 bg-white
-        // 確保它能夠填充 App.jsx 的 <main> 元素提供的空間
-        <div className="bg-white w-full h-full p-2"> {/* 添加 p-2 作為頁面內部內容的整體內邊距 */}
+        <div className="w-full h-full p-2">
 
             {notification && (
                 <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-md text-white ${notification.type === 'success' ? 'bg-green-500' : notification.type === 'error' ? 'bg-red-500' : 'bg-blue-500'}`}>
@@ -572,7 +569,6 @@ function CustomerDetails() {
             )
             }
 
-            {/* 主要內容區域，給予最大寬度並居中 */}
             <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8 relative"> 
 
                 <button

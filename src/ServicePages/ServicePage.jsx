@@ -326,7 +326,6 @@ function ServicePageContent() { // 將函數名從 App 改為 ServicePageContent
 
   // 根據 status 取得對應的背景色 (用於 'all' 視圖)
   const getStatusColor = (status) => {
-    // if (searchQuery) return 'hover:bg-slate-100'; // 註解掉，搜尋結果也顯示狀態顏色
 
     switch (status) {
       case 'open': return 'bg-yellow-100 hover:bg-yellow-200'; // 未結案
@@ -455,7 +454,7 @@ function ServicePageContent() { // 將函數名從 App 改為 ServicePageContent
       onDragEnd={onDragEnd}
       renderClone={renderCustomerDragClone}
     >
-      <div className="bg-slate-100 flex flex-col w-full h-full">
+      <div className="flex flex-col w-full h-full">
 
         {notification && (
           <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-md text-white ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
@@ -465,7 +464,7 @@ function ServicePageContent() { // 將函數名從 App 改為 ServicePageContent
 
         <div className="w-full max-w-screen-xl mx-auto flex flex-col md:flex-row py-4 px-2 flex-grow overflow-x-hidden"> 
 
-          <div className={`w-full md:w-3/4 bg-white shadow-lg rounded-lg p-6 md:p-8 mb-4 md:mb-0 md:mr-4 flex flex-col flex-grow`}> {/* 修改此行 */}
+          <div className={`w-full md:w-3/4 bg-white shadow-lg rounded-lg p-6 md:p-8 mb-4 md:mb-0 md:mr-4 flex flex-col flex-grow`}> 
             <div className="flex-grow"> 
               <div className="flex justify-between items-center mb-8">
                 <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-slate-700 text-2xl p-2">
@@ -665,7 +664,6 @@ function ServicePageContent() { // 將函數名從 App 改為 ServicePageContent
             )}
           </div>
 
-          {/* 右側拖曳區塊 */}
           <div className="w-full md:w-56 flex-shrink-0 flex flex-col space-y-4">
             <Droppable droppableId="closed" type="CUSTOMER" isDropDisabled={!!searchQuery}>
               {(provided, snapshot) => (

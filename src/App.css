@@ -14,19 +14,20 @@ html, body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
+  height: 100%; /* 確保html和body佔滿整個視口高度 */
 }
 
 body {
-  font-family: 'BiauKaiDigits', var(--tw-font-sans), sans-serif; /* <-- 修正這行 */
+  font-family: 'BiauKaiDigits', var(--tw-font-sans), sans-serif;
 
-  @apply bg-pink-50 text-gray-800; /* 其他顏色和字體屬性可以保留 */
+  @apply bg-pink-50 text-gray-800;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  min-height: 100vh;
-  overflow: hidden;
+  /* 移除以下兩行，讓外部的AppLayout來控制滾動 */
+  /* min-height: 100vh; */
+  overflow: auto;
 }
 
 h1, h2, h3 {

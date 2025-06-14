@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Heart, LogIn as LogInIcon, User, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Login.css";
 
