@@ -122,7 +122,7 @@ router.post('/process-payment', async (req, res) => {
     } else if (newAmountPaid > 0 && newAmountPaid < invoice.total_amount) {
       newStatus = '部分付款';
     } else {
-        newStatus = '未付'; // 如果支付金額為0或無效，保持原狀態
+      newStatus = '未付'; // 如果支付金額為0或無效，保持原狀態
     }
 
     // 2. 更新 invoices 表

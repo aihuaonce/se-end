@@ -10,7 +10,7 @@ const syncRoutes = require('./routes/syncRoutes');
 const statusRoutes = require('./routes/statusRoutes');
 const joinRoutes = require('./routes/joinRoutes');
 const reserveRoutes = require('./routes/reserveRoutes');
-
+const financeRoutes = require('./routes/financeRoutes');
 
 const app = express();
 
@@ -23,6 +23,7 @@ app.use('/sync-sheet-data', syncRoutes);
 app.use('/update-status', statusRoutes);
 app.use('/', joinRoutes);
 app.use('/', reserveRoutes);
+app.use('/api/finance', financeRoutes);
 
 // 啟動伺服器
 const PORT = process.env.PORT || 5713; // 從 .env 讀取埠號，如果沒有則預設 5713
