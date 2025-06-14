@@ -1,19 +1,20 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react"; // 引入 useMemo
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
-import validator from 'validator'; // 引入 validator 函式庫
+import validator from 'validator';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { FiMenu } from 'react-icons/fi'; // 引入漢堡選單圖示
-import '../styles/Service.css'; // 確保引入 App.css 檔案
-import moment from 'moment'; // 引入 moment.js 處理日期
+import { FiMenu } from 'react-icons/fi';
+// 確保 Service.css 已經被清理過，不再包含全局或衝突樣式
+import '../styles/Service.css'; 
+import moment from 'moment';
 
-function App() {
-  // 儲存從 API 獲取的原始客戶列表 (不受篩選和搜尋影響)
+// 建議將這個 App 函數重新命名為 ServicePageContent，以避免與 App.jsx 中的 App 混淆
+function ServicePageContent() { // 將函數名從 App 改為 ServicePageContent
+  // ... (其他狀態和函式保持不變，例如 allCustomers, filteredAndSearchedCustomers, loading, error, showForm 等) ...
+
   const [allCustomers, setAllCustomers] = useState([]);
-  // 儲存經過篩選和搜尋後的客戶列表 (用於顯示)
   const [filteredAndSearchedCustomers, setFilteredAndSearchedCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
-  // eslint-disable-next-line no-unused-vars  
-  const [error, setError] = useState(null); // 忽略 ESLint 警告
+  const [error, setError] = useState(null);
 
 
   const [showForm, setShowForm] = useState(false);
@@ -360,7 +361,7 @@ function App() {
 
   // ==== 處理點擊搜尋按鈕或按下 Enter 鍵 ====
   const handleSearch = () => {
-    // 點擊搜尋或按下 Enter 鍵時，只需觸發 filterAndSearchCustomers
+    // 點擊搜尋或按下 Enter 鍵時，只需觸發 filterAndSearchedCustomers
     // 狀態改變會自動觸發 useEffect，所以這裡可以不做事，或者可以加一個 log
     console.log("執行前端搜尋...");
     // filterAndSearchCustomers(); // 不需要手動呼叫，useEffect 會處理
@@ -432,7 +433,8 @@ function App() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-200">
+      // 將 min-h-screen 替換為 h-full，並移除背景顏色，讓 App.jsx 的 main 元素控制
+      <div className="flex justify-center items-center h-full"> 
         <p className="text-gray-600 text-xl">載入中...</p>
       </div>
     );
@@ -440,7 +442,8 @@ function App() {
 
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-200">
+      // 將 min-h-screen 替換為 h-full
+      <div className="flex justify-center items-center h-full">
         <p className="text-red-600 text-xl">{error}</p>
       </div>
     );
@@ -452,7 +455,7 @@ function App() {
       onDragEnd={onDragEnd}
       renderClone={renderCustomerDragClone}
     >
-      <div className="min-h-screen bg-slate-100 py-8 px-4 flex justify-center">
+      <div className="bg-slate-100 flex flex-col w-full h-full">
 
         {notification && (
           <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-md text-white ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
@@ -460,9 +463,10 @@ function App() {
           </div>
         )}
 
-        <div className="w-full max-w-screen-xl mx-auto flex flex-col md:flex-row overflow-x-hidden">
-          <div className={`w-full md:w-3/4 bg-white shadow-lg rounded-lg p-6 md:p-8 mb-4 md:mb-0 md:mr-4 flex flex-col`}>
-            <div className="flex-grow">
+        <div className="w-full max-w-screen-xl mx-auto flex flex-col md:flex-row py-4 px-2 flex-grow overflow-x-hidden"> 
+
+          <div className={`w-full md:w-3/4 bg-white shadow-lg rounded-lg p-6 md:p-8 mb-4 md:mb-0 md:mr-4 flex flex-col flex-grow`}> {/* 修改此行 */}
+            <div className="flex-grow"> 
               <div className="flex justify-between items-center mb-8">
                 <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-slate-700 text-2xl p-2">
                   <FiMenu />
@@ -482,7 +486,7 @@ function App() {
 
               <div className={`fixed top-0 left-0 h-full w-64 bg-white text-black shadow-lg z-50 transform ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out`}>
                 <div className="p-4">
-                  <button onClick={() => setIsMenuOpen(false)} className="absolute top-2 right-2 text-slate-500 text-2xl">&times;</button>
+                  <button onClick={() => setIsMenuOpen(false)} className="absolute top-2 right-2 text-slate-500 text-2xl">×</button>
                   <h2 className="text-xl font-semibold mb-4">篩選</h2>
                   <button onClick={() => handleFilterChange('all')} className={`block w-full text-left p-2 rounded mb-2 ${filterStatus === 'all' && !searchQuery ? 'bg-sky-100' : 'hover:bg-gray-100'}`}>全部</button>
                   <button onClick={() => handleFilterChange('open')} className={`block w-full text-left p-2 rounded mb-2 ${filterStatus === 'open' && !searchQuery ? 'bg-sky-100' : 'hover:bg-gray-100'}`}>未結案</button>
@@ -497,7 +501,7 @@ function App() {
                   placeholder="輸入關鍵字搜尋 (姓名, Email, 或婚禮日期YYYY-MM-DD)"
                   value={searchQuery}
                   onChange={handleSearchInputChange}
-                  onKeyPress={handleKeyPress} // 監聽 Enter 鍵
+                  onKeyPress={handleKeyPress}
                   className="flex-grow border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm md:text-base"
                 />
                 <select
@@ -512,8 +516,8 @@ function App() {
                 {searchQuery && (
                   <button
                     onClick={() => {
-                      setSearchQuery(''); // 清空搜尋框 (會觸發 filterAndSearchCustomers 和分頁重設)
-                      setSearchBy('name'); // 重設搜尋欄位 (會觸發 filterAndSearchCustomers 和分頁重設)
+                      setSearchQuery('');
+                      setSearchBy('name');
                     }}
                     className="bg-slate-500 text-white px-4 py-2 rounded-md shadow hover:bg-slate-600 transition-colors duration-200 text-sm md:text-base flex-shrink-0"
                   >
@@ -527,7 +531,7 @@ function App() {
                   <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md transform transition-all duration-300 scale-100">
                     <div className="flex justify-between items-center mb-4 border-b pb-2 border-slate-200">
                       <h2 className="text-xl font-bold text-slate-700">新增客戶資訊</h2>
-                      <button onClick={() => { setShowForm(false); setFormErrors({}); setFormData({ groom_name: "", bride_name: "", email: "", phone: "", wedding_date: "", wedding_location: "", form_link: "" }); }} className="text-slate-500 hover:text-slate-700 text-2xl">&times;</button>
+                      <button onClick={() => { setShowForm(false); setFormErrors({}); setFormData({ groom_name: "", bride_name: "", email: "", phone: "", wedding_date: "", wedding_location: "", form_link: "" }); }} className="text-slate-500 hover:text-slate-700 text-2xl">×</button>
                     </div>
                     <div className="grid grid-cols-1 gap-4">
                       <div>
@@ -636,7 +640,7 @@ function App() {
             )}
 
             {filteredAndSearchedCustomers.length > itemsPerPage && (
-              <div className="flex justify-center items-center mt-6 space-x-2"> {/* 移除 fixed 定位相關類別 */}
+              <div className="flex justify-center items-center mt-6 space-x-2">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
@@ -644,7 +648,6 @@ function App() {
                 >
                   上一頁
                 </button>
-                {/* 可以顯示部分頁碼 */}
                 <span className="text-slate-700 text-sm md:text-base">
                   頁碼 {currentPage} / {totalPages}
                 </span>
@@ -655,7 +658,6 @@ function App() {
                 >
                   下一頁
                 </button>
-                {/* 可選：顯示總條目數 */}
                 <span className="text-slate-500 text-sm md:text-base ml-4">
                   ({filteredAndSearchedCustomers.length} 筆資料)
                 </span>
@@ -663,6 +665,7 @@ function App() {
             )}
           </div>
 
+          {/* 右側拖曳區塊 */}
           <div className="w-full md:w-56 flex-shrink-0 flex flex-col space-y-4">
             <Droppable droppableId="closed" type="CUSTOMER" isDropDisabled={!!searchQuery}>
               {(provided, snapshot) => (
@@ -706,4 +709,4 @@ function App() {
   );
 }
 
-export default App;
+export default ServicePageContent; // 導出新的名稱

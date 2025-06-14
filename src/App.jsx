@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom'; // 引入 Outlet, useLocation, useNavigate
+import { BrowserRouter as Router, Routes, Route, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import './App.css';
 
 import HomePage from './pages/HomePages';
-import ServicePage from './ServicePages/ServicePage';
+import ServicePageContent from './ServicePages/ServicePage';
 import DesignProcess from './ServicePages/DesignProcess';
 import CustomerPage from './pages/CustomerPage';
-import FinancePage from './FinancePage/FinancePage'; 
+import FinancePage from './FinancePage/FinancePage'; // 確保路徑正確
 import NotFoundPage from './pages/NotFoundPage';
 import LoginPage from './pages/LoginPage';
 import CustomerDetails from './ServicePages/CustomerDetail';
@@ -14,7 +15,7 @@ import PersonDataPage from "./pages/PersonDataPage";
 import BookingPage from "./pages/BookingPage";
 import Header from './components/Header';
 import Footer from './components/Footer';
-import Sidebar from './components/Sidebar'; 
+import Sidebar from './components/Sidebar';
 
 function AppLayout() {
   const navigate = useNavigate();
@@ -37,8 +38,6 @@ function AppLayout() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        {/* 如果用戶直接訪問這些路徑以外的，例如 /finance 而未登入，也應該被導向登入頁面，
-            但目前只是簡單地判斷路徑，您可能需要更完善的認證邏輯 */}
       </Routes>
     );
   }
@@ -48,9 +47,11 @@ function AppLayout() {
       <Header /> 
 
       <div className="flex flex-grow">
-        <Sidebar /> {/* 共享的 Sidebar */}
-        <main className="flex-grow p-4 overflow-y-auto">
-          <Outlet />
+        <Sidebar />
+        <main className="flex-grow overflow-y-auto bg-white"> 
+          <div className="p-2 h-full"> 
+            <Outlet />
+          </div>
         </main>
       </div>
 
@@ -65,7 +66,7 @@ function App() {
       <Routes>
         <Route path="/" element={<AppLayout />}>
           <Route index element={<HomePage />} /> 
-          <Route path="service" element={<ServicePage />} />
+          <Route path="service" element={<ServicePageContent />} />
           <Route path="process" element={<DesignProcess />} />
           <Route path="customer" element={<CustomerPage />} />
           <Route path="customer/:id" element={<CustomerDetails />} />

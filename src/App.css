@@ -2,32 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 自定義全站風格 */
+@font-face {
+  font-family: 'BiauKaiDigits'; /* 為這個特殊的字型定義一個新的名稱 */
+  src: local('標楷體'), /* 嘗試載入本地的 '標楷體' */
+       local('BiauKai'), /* Mac OS X 的中文楷書字體名稱 */
+       local('DFKai-SB'); /* 另一種常見的楷書字體名稱 */
+  unicode-range: U+0030-0039; /* Unicode 範圍：數字 0 到 9 */
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
 body {
-  @apply bg-pink-50 text-gray-800 font-serif overflow-x-hidden;
+  font-family: 'BiauKaiDigits', var(--tw-font-sans), sans-serif; /* <-- 修正這行 */
+
+  @apply bg-pink-50 text-gray-800; /* 其他顏色和字體屬性可以保留 */
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  min-height: 100vh;
+  overflow: hidden;
 }
 
-/* 婚禮主題樣式強化：如果你使用元件系統，可保留這些樣式 */
-h1,
-h2,
-h3 {
+h1, h2, h3 {
   @apply font-bold text-pink-700;
 }
 
 button {
-  @apply focus: outline-none;
-}
-
-/* 假如你還有 App 結構，也保留安全樣式 */
-.App {
-  text-align: center;
-}
-
-.App-link {
-  color: #ec4899;
-  /* Tailwind pink-500 */
+  @apply focus:outline-none;
 }

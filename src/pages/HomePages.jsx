@@ -24,8 +24,6 @@ export default function HomePages() {
 
   return (
     <div className="wedding-container">
-
-
       <main className="main-content">
         <section className="hero-section">
           <h2 className="hero-title">

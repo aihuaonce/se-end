@@ -1,16 +1,16 @@
-// ServicePage.jsx
-
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import validator from 'validator';
 import { FiMenu } from 'react-icons/fi';
-import '../styles/Service.css';
+// 確保 Service.css 已經被清理過，不再包含全局或衝突樣式
+import '../styles/Service.css'; 
 import moment from 'moment';
 
-// 引入我們手寫的自定義日曆組件
+// 引入 CustomMonthPickerCalendar
 import CustomMonthPickerCalendar from '../components/CustomMonthPickerCalendar';
 
-function App() {
+// 建議將這個函數名改為 DesignProcessContent
+function DesignProcessContent() { // 將函數名從 App 改為 DesignProcessContent
   const [allCustomers, setAllCustomers] = useState([]);
   const [filteredAndSearchedCustomers, setFilteredAndSearchedCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,20 +42,17 @@ function App() {
   const [itemsPerPage] = useState(7);
 
   // ==== 日曆相關的狀態 ====
-  // selectedDate 會是一個 Date 物件 (該月份的第一天，用於篩選)
   const [selectedDate, setSelectedDate] = useState(null);
 
-  // 限制日曆的年份範圍 (用於傳遞給 CustomMonthPickerCalendar)
-  const minAllowedDate = useMemo(() => new Date(1990, 0, 1), []); // 1990年1月1日
-  const maxAllowedDate = useMemo(() => new Date(new Date().getFullYear(), 11, 31), []); // 當前年份的12月31日
+  const minAllowedDate = useMemo(() => new Date(1990, 0, 1), []);
+  const maxAllowedDate = useMemo(() => new Date(new Date().getFullYear(), 11, 31), []);
 
-  // ==== 修改：提取所有客戶的婚禮日期及狀態 ====
   const allWeddingEvents = useMemo(() => {
     return allCustomers
-      .filter(customer => customer.wedding_date) // 只考慮有婚禮日期的客戶
+      .filter(customer => customer.wedding_date)
       .map(customer => ({
-        date: moment(customer.wedding_date).startOf('day').toDate(), // 確保日期是當天的開始，方便比較
-        status: customer.status // 包含客戶的狀態
+        date: moment(customer.wedding_date).startOf('day').toDate(),
+        status: customer.status
       }));
   }, [allCustomers]);
 
@@ -87,12 +84,10 @@ function App() {
   const filterAndSearchCustomers = useCallback(() => {
     let result = allCustomers;
 
-    // 1. 先根據 filterStatus 篩選
     if (filterStatus !== 'all') {
       result = result.filter(customer => customer.status === filterStatus);
     }
 
-    // 2. 再根據 searchQuery 搜尋
     if (searchQuery.trim()) {
       const lowerCaseQuery = searchQuery.trim().toLowerCase();
       result = result.filter(customer => {
@@ -114,9 +109,7 @@ function App() {
       });
     }
 
-    // 3. 最後根據 selectedDate (月份) 篩選
     if (selectedDate) {
-      // 將選定的月份和客戶的婚禮日期都格式化為 'YYYY-MM' (年-月) 進行比較
       const selectedMonthYear = moment(selectedDate).format('YYYY-MM');
       result = result.filter(customer =>
         customer.wedding_date && moment(customer.wedding_date).format('YYYY-MM') === selectedMonthYear
@@ -134,7 +127,7 @@ function App() {
 
   useEffect(() => {
     filterAndSearchCustomers();
-    setCurrentPage(1); // 任何篩選條件改變時，重設回第一頁
+    setCurrentPage(1);
   }, [allCustomers, filterStatus, searchQuery, searchBy, selectedDate, filterAndSearchCustomers]);
 
 
@@ -246,7 +239,7 @@ function App() {
     setIsMenuOpen(false);
     setSearchQuery('');
     setSearchBy('name');
-    setSelectedDate(null); // 清空日期篩選
+    setSelectedDate(null);
   };
 
   const handleSearchInputChange = (e) => {
@@ -273,15 +266,13 @@ function App() {
     }
   };
 
-  // ==== 處理 CustomMonthPickerCalendar 選擇月份的回調 ====
   const handleMonthSelect = (date) => {
-    setSelectedDate(date); // date 已經是該月份的第一天
-    setFilterStatus('all'); // 當選擇月份時，將狀態篩選重設為 'all'
-    setSearchQuery(''); // 當選擇月份時，清空搜尋關鍵字
+    setSelectedDate(date);
+    setFilterStatus('all');
+    setSearchQuery('');
     setSearchBy('name');
   };
 
-  // 清除日曆篩選的回調函式 (從 CustomMonthPickerCalendar 呼叫)
   const handleClearCalendarFilter = useCallback(() => {
     setSelectedDate(null);
   }, []);
@@ -289,7 +280,8 @@ function App() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-200">
+      // 修正：bg-gray-200 改為 bg-white，min-h-screen 移除
+      <div className="flex justify-center items-center h-full bg-white">
         <p className="text-gray-600 text-xl">載入中...</p>
       </div>
     );
@@ -297,14 +289,17 @@ function App() {
 
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-200">
+      // 修正：bg-gray-200 改為 bg-white，min-h-screen 移除
+      <div className="flex justify-center items-center h-full bg-white">
         <p className="text-red-600 text-xl">{error}</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 py-8 px-4 flex justify-center">
+    // 修正：移除 min-h-screen, py-8, px-4。將 bg-slate-100 改為 bg-white
+    // 這個頁面根 div 不應該有任何 padding，讓 App.jsx 的 p-2 包裹層提供
+    <div className="bg-white flex flex-col w-full h-full"> 
 
       {notification && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-md text-white ${notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
@@ -312,9 +307,17 @@ function App() {
         </div>
       )}
 
-      <div className="w-full max-w-screen-xl mx-auto flex flex-col md:flex-row overflow-x-hidden">
-        <div className={`w-full md:w-3/4 bg-white shadow-lg rounded-lg p-6 md:p-8 mb-4 md:mb-0 md:mr-4 flex flex-col`}>
-          <div className="flex-grow">
+      {/* 主要內容容器：
+          - 保持 w-full max-w-screen-xl mx-auto flex flex-col md:flex-row
+          - 添加 flex-grow，讓它填充 DesignProcessContent 根元素的所有可用空間
+          - 移除這裡的 py-4 px-2，因為 App.jsx 已經提供了
+          - overflow-x-hidden 保持不變，用於防止內部水平溢出
+      */}
+      <div className="w-full max-w-screen-xl mx-auto flex flex-col md:flex-row flex-grow overflow-x-hidden"> 
+
+        {/* 左側主表格區域：保持不變 */}
+        <div className={`w-full md:w-3/4 bg-white shadow-lg rounded-lg p-6 md:p-8 mb-4 md:mb-0 md:mr-4 flex flex-col flex-grow`}> 
+          <div className="flex-grow"> 
             <div className="flex justify-between items-center mb-8">
               <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-slate-700 text-2xl p-2">
                 <FiMenu />
@@ -443,8 +446,8 @@ function App() {
                     <th className="py-3 px-4 border-b border-slate-400 text-sm md:text-lg font-semibold">操作</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {customersToDisplay.map((c) => (
+                <tbody> {/* <-- 這裡沒有 Droppable，可能回到了舊版本 */}
+                  {customersToDisplay.map((c, index) => (
                     <tr
                       key={c.id}
                       className={`${getStatusColor(c.status)}`}
@@ -504,8 +507,9 @@ function App() {
           )}
         </div>
 
-        <div className="w-full md:w-auto flex-shrink-0 flex flex-col space-y-4 items-center">
-          <div className="bg-white shadow-lg rounded-lg p-4 w-full max-w-sm md:max-w-none">
+        {/* 右側日曆區塊：保持不變 */}
+        <div className="w-full md:w-auto flex-shrink-0 flex flex-col space-y-4">
+          <div className="bg-white shadow-lg rounded-lg p-4 w-full max-w-sm md:max-w-none"> 
             <h2 className="text-lg md:text-xl font-semibold text-center text-slate-700 mb-4">依婚禮月份篩選</h2>
             <CustomMonthPickerCalendar
               selectedMonth={selectedDate}
@@ -522,4 +526,5 @@ function App() {
   );
 }
 
-export default App;
+// 導出組件
+export default DesignProcessContent; // 確保名稱與 App.jsx 匹配

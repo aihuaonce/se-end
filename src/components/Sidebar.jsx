@@ -6,17 +6,18 @@ export default function Sidebar() {
 
   const getLinkClassName = (path) => {
     return `
-      flex items-center gap-2 w-full py-2 px-4 rounded transition duration-200 ease-in-out
-      hover:bg-gray-100 hover:text-[#B7B09F] text-[#CB8A90] 
+    flex items-center gap-1 w-full py-1.5 px-2 rounded transition duration-200 ease-in-out
+    hover:bg-gray-100 hover:text-[#B7B09F] text-[#CB8A90] 
+    text-sm
     `;
   };
 
   return (
-    <div className="h-screen w-48 bg-white flex flex-col flex-shrink-0" style={{ color: '#CB8A90' }}> 
+    <div className="h-full w-40 bg-white flex flex-col flex-shrink-0" style={{ color: '#CB8A90' }}> 
 
       <nav className="flex-1 overflow-y-auto w-full">
-        <ul className="space-y-1 p-2 text-sm w-full">
-          <li className="font-bold text-lg mt-4 mb-2 pl-2" style={{ color: '#CB8A90' }}> 
+      <ul className="space-y-0.5 p-1 text-xs w-full"> 
+          <li className="font-bold text-base mt-2 mb-1 pl-1" style={{ color: '#CB8A90' }}> 
             專案
           </li>
           <li> 
@@ -26,7 +27,7 @@ export default function Sidebar() {
             </Link>
           </li>
 
-          <li className="font-bold text-lg mt-4 mb-2 pl-2" style={{ color: '#CB8A90' }}> 
+          <li className="font-bold text-base mt-2 mb-1 pl-1" style={{ color: '#CB8A90' }}>  
             顧客
           </li>
           <li> 
@@ -48,7 +49,7 @@ export default function Sidebar() {
             </Link>
           </li>
 
-          <li className="font-bold text-lg mt-4 mb-2 pl-2" style={{ color: '#CB8A90' }}> 
+          <li className="font-bold text-base mt-2 mb-1 pl-1" style={{ color: '#CB8A90' }}>  
             服務
           </li>
           <li>
@@ -70,7 +71,7 @@ export default function Sidebar() {
             </Link>
           </li>
 
-          <li className="font-bold text-lg mt-4 mb-2 pl-2" style={{ color: '#CB8A90' }}> 
+          <li className="font-bold text-base mt-2 mb-1 pl-1" style={{ color: '#CB8A90' }}>  
             財務
           </li>
           <li>

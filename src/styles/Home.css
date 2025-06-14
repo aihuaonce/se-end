@@ -1,13 +1,9 @@
 .wedding-container {
     min-height: 100vh;
     background-color: white;
-    /* pink-50 */
     color: #1f2937;
-    /* gray-800 */
     font-family: serif;
 }
-
-
 
 .brand-title {
     font-size: 1.5rem;
