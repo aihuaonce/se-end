@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom'; 
 
+// 引入子組件
 import FinanceOverview from './FinanceOverview';
 import InvoiceTable from './InvoiceTable';
 import CustomerTable from './CustomerTable';
@@ -10,6 +11,7 @@ import ExpenseTable from './ExpenseTable';
 import PettyCashTable from './PettyCashTable';
 import MonthlyReportTable from './MonthlyReportTable';
 
+// 引入模態框組件 (假設它們在 './modals/' 目錄下)
 import AddExpenseModal from './modals/AddExpenseModal';
 import PaymentModal from './modals/PaymentModal';
 import DepositPettyCashModal from './modals/DepositPettyCashModal';
@@ -22,12 +24,10 @@ const API_URL = 'http://localhost:5713'; // 確保這個 URL 正確指向您的�
 
 export default function FinancePage() {
   // 從 URL 參數獲取當前子路徑
-  // useParams() 返回一個物件，其中包含路徑參數。
-  // 我們在 App.jsx 中將路由定義為 path="finance/*"，
-  // 這裡的 '*' 會捕獲 /finance/ 之後的所有內容。
   const { '*': subview } = useParams(); 
   const currentView = subview || 'overview'; // 如果沒有子路徑，預設顯示 'overview'
 
+  // 狀態管理 (主要數據和模態框控制)
   const [overview, setOverview] = useState({ totalRevenue: 0, totalReceivables: 0, invoiceCount: 0, totalExpenses: 0 });
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -35,6 +35,12 @@ export default function FinancePage() {
   const [expenses, setExpenses] = useState([]);
   const [pettyCashTransactions, setPettyCashTransactions] = useState([]);
   const [monthlyReportData, setMonthlyReportData] = useState([]);
+  // 新增圖表數據狀態，這些會傳遞給 FinanceOverview
+  const [expenseByCategoryData, setExpenseByCategoryData] = useState([]);
+  const [revenueByProjectData, setRevenueByProjectData] = useState([]);
+  const [invoicePaymentMethodData, setInvoicePaymentMethodData] = useState([]);
+  const [invoiceStatusData, setInvoiceStatusData] = useState([]);
+  const [topCustomersData, setTopCustomersData] = useState([]);
 
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -50,6 +56,7 @@ export default function FinancePage() {
   const [showCustomerDetailModal, setShowCustomerDetailModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
+  // 下拉選單數據 (僅在需要時獲取，例如 expenses 視圖)
   const [categories, setCategories] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -61,8 +68,14 @@ export default function FinancePage() {
   useEffect(() => {
     const loadScript = (src, id, callback) => {
       if (document.getElementById(id)) {
-        if (callback) callback();
-        return;
+        if (id === 'jspdf-script' && (typeof window.jsPDF !== 'undefined' || typeof window.jspdf !== 'undefined')) {
+          if (callback) callback();
+          return;
+        }
+        if (id === 'html2canvas-script' && typeof window.html2canvas !== 'undefined') {
+          if (callback) callback();
+          return;
+        }
       }
       const script = document.createElement('script');
       script.src = src;
@@ -75,7 +88,7 @@ export default function FinancePage() {
       document.head.appendChild(script);
     };
 
-    if (typeof window.jsPDF === 'undefined') {
+    if (typeof window.jsPDF === 'undefined' && typeof window.jspdf === 'undefined') {
       loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'jspdf-script', () => {
         if (typeof window.jspdf !== 'undefined' && typeof window.jspdf.jsPDF !== 'undefined') {
           window.jsPDF = window.jspdf.jsPDF;
@@ -90,15 +103,19 @@ export default function FinancePage() {
     }
   }, []);
 
-
+  // 根據 currentView 獲取數據
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 根據 currentView (從 URL 參數獲取) 獲取數據
         switch (currentView) { 
           case 'overview':
             await fetchOverview();
             await fetchMonthlyReport();
+            await fetchExpenseByCategory();
+            await fetchRevenueByProject();
+            await fetchInvoicePaymentMethods();
+            await fetchInvoiceStatus();
+            await fetchTopCustomers();
             break;
           case 'invoices':
             await fetchInvoices();
@@ -203,6 +220,51 @@ export default function FinancePage() {
     }
   };
 
+  const fetchExpenseByCategory = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/finance/expenses-by-category`);
+      setExpenseByCategoryData(res.data);
+    } catch (err) {
+      console.error('Fetch expense by category error:', err);
+    }
+  };
+
+  const fetchRevenueByProject = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/finance/revenue-by-project`);
+      setRevenueByProjectData(res.data);
+    } catch (err) {
+      console.error('Fetch revenue by project error:', err);
+    }
+  };
+
+  const fetchInvoicePaymentMethods = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/finance/invoice-payment-methods`);
+      setInvoicePaymentMethodData(res.data);
+    } catch (err) {
+      console.error('Fetch invoice payment methods error:', err);
+    }
+  };
+
+  const fetchInvoiceStatus = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/finance/invoice-status-distribution`);
+      setInvoiceStatusData(res.data);
+    } catch (err) {
+      console.error('Fetch invoice status error:', err);
+    }
+  };
+
+  const fetchTopCustomers = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/finance/top-customers-by-revenue?limit=5`);
+      setTopCustomersData(res.data);
+    } catch (err) {
+      console.error('Fetch top customers by revenue error:', err);
+    }
+  };
+
   const fetchCategories = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/finance/categories`);
@@ -239,21 +301,28 @@ export default function FinancePage() {
     }
   };
 
+
+  // 各個操作的回調函數
   const handleExpenseAdded = () => {
     setShowAddExpenseModal(false);
     fetchExpenses();
-    fetchOverview();
-    fetchPettyCash();
-    fetchMonthlyReport();
+    fetchOverview(); // 更新總支出
+    fetchPettyCash(); // 更新零用金 (如果支付方式是現金)
+    fetchMonthlyReport(); // 更新月報表
+    fetchExpenseByCategory(); // 更新分類支出圖表
   };
 
   const handlePaymentSuccess = () => {
     setShowPaymentModal(false);
     setSelectedInvoice(null);
     fetchInvoices();
-    fetchOverview();
-    fetchPayments();
-    fetchPettyCash();
+    fetchOverview(); // 更新代收款和總收入
+    fetchPayments(); // 更新付款紀錄
+    fetchPettyCash(); // 更新零用金 (如果支付方式是現金/銀行轉帳)
+    fetchRevenueByProject(); // 更新專案收入圖表
+    fetchInvoicePaymentMethods(); // 更新支付方式圖表
+    fetchInvoiceStatus(); // 更新發票狀態圖表
+    fetchTopCustomers(); // 更新熱門客戶圖表
   };
 
   const handleInitiatePayment = (invoice) => {
@@ -265,21 +334,16 @@ export default function FinancePage() {
     setOverviewDetailType(type);
     let data = [];
     try {
-      if (type === 'revenue') {
+      if (type === 'revenue' || type === 'expenses') {
+        // 對於收入和支出，直接使用已有的 monthlyReportData
         data = monthlyReportData.map(item => ({
           month: item.month,
-          amount: item.total_revenue,
-          description: '總收入'
-        }));
-      } else if (type === 'expenses') {
-        data = monthlyReportData.map(item => ({
-          month: item.month,
-          amount: item.total_expenses,
-          description: '總支出'
+          amount: type === 'revenue' ? item.total_revenue : item.total_expenses,
+          description: type === 'revenue' ? '總收入' : '總支出'
         }));
       } else if (type === 'receivables') {
         const res = await axios.get(`${API_URL}/api/finance/invoices`);
-        data = res.data.filter(inv => inv.paid === '未付' || inv.paid === '部分付款' || inv.paid === '逾期')
+        data = res.data.filter(inv => ['未付', '部分付款', '逾期'].includes(inv.paid))
                         .map(inv => ({
                           id: inv.id,
                           customer: inv.customer_company_name,
@@ -325,17 +389,17 @@ export default function FinancePage() {
 
     if (monthlyReportRef.current) {
       const input = monthlyReportRef.current;
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise(resolve => setTimeout(resolve, 100)); // 給予足夠時間讓 DOM 渲染完成
+
       window.html2canvas(input, {
-        scale: 2,
+        scale: 2, // 提高解析度
         useCORS: true,
         logging: true,
       }).then((canvas) => {
         const imgData = canvas.toDataURL('image/png');
-        const pdf = new window.jsPDF('p', 'mm', 'a4');
-        const imgWidth = 210;
-        const pageHeight = 297;
+        const pdf = new window.jsPDF('p', 'mm', 'a4'); // 'p' for portrait, 'mm' for millimeters, 'a4' size
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
         let heightLeft = imgHeight;
         let position = 0;
@@ -357,23 +421,34 @@ export default function FinancePage() {
     }
   };
 
+  // FinancePage 現在只負責根據 subview 渲染正確的內容，其自身不再包含側邊欄等佈局元素
   return (
-    // FinancePage 現在只負責渲染內容，其樣式由 App.jsx 的 main 元素控制
     <div className="w-full h-full"> 
-      {currentView === 'overview' && <FinanceOverview data={overview} monthlyReportData={monthlyReportData} onCardClick={handleOverviewCardClick} API_URL={API_URL} />}
-      {currentView === 'invoices' && <InvoiceTable invoices={invoices} onInitiatePayment={handleInitiatePayment} API_URL={API_URL} />}
-      {currentView === 'customers' && <CustomerTable customers={customers} onCustomerClick={handleCustomerClick} API_URL={API_URL} />}
-      {currentView === 'payments' && <PaymentTable payments={payments} API_URL={API_URL} />}
+      {currentView === 'overview' && (
+        <FinanceOverview
+          data={overview}
+          monthlyReportData={monthlyReportData}
+          expenseByCategoryData={expenseByCategoryData}
+          revenueByProjectData={revenueByProjectData}
+          invoicePaymentMethodData={invoicePaymentMethodData}
+          invoiceStatusData={invoiceStatusData}
+          topCustomersData={topCustomersData}
+          onCardClick={handleOverviewCardClick}
+        />
+      )}
+      {currentView === 'invoices' && <InvoiceTable invoices={invoices} onInitiatePayment={handleInitiatePayment} />}
+      {currentView === 'customers' && <CustomerTable customers={customers} onCustomerClick={handleCustomerClick} />}
+      {currentView === 'payments' && <PaymentTable payments={payments} />}
       {currentView === 'expenses' && (
         <ExpenseTable
           expenses={expenses}
           onAddExpenseClick={() => setShowAddExpenseModal(true)}
-          API_URL={API_URL}
         />
       )}
-      {currentView === 'pettyCash' && <PettyCashTable transactions={pettyCashTransactions} onDepositClick={() => setShowPettyCashDepositModal(true)} isManager={isManager} API_URL={API_URL} />}
-      {currentView === 'monthlyReport' && <MonthlyReportTable reportData={monthlyReportData} monthlyReportRef={monthlyReportRef} onExportPdf={exportMonthlyReportPdf} API_URL={API_URL} />}
+      {currentView === 'pettyCash' && <PettyCashTable transactions={pettyCashTransactions} onDepositClick={() => setShowPettyCashDepositModal(true)} isManager={isManager} />}
+      {currentView === 'monthlyReport' && <MonthlyReportTable reportData={monthlyReportData} monthlyReportRef={monthlyReportRef} onExportPdf={exportMonthlyReportPdf} />}
 
+      {/* 模態框組件 */}
       {showAddExpenseModal && (
         <AddExpenseModal
           onClose={() => setShowAddExpenseModal(false)}
@@ -382,7 +457,7 @@ export default function FinancePage() {
           vendors={vendors}
           projects={projects}
           expenseAccounts={expenseAccounts}
-          API_URL={API_URL}
+          API_URL={API_URL} // 確保 API_URL 傳遞給模態框，如果它內部需要發送請求
         />
       )}
 
@@ -408,7 +483,6 @@ export default function FinancePage() {
           dataType={overviewDetailType}
           data={overviewDetailData}
           onClose={() => setShowOverviewDetailModal(false)}
-          API_URL={API_URL}
         />
       )}
 

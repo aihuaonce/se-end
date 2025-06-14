@@ -7,12 +7,14 @@ export default function MonthlyReportTable({ reportData, monthlyReportRef, onExp
         <h3 className="text-3xl font-bold text-[#C9C2B2]">每月財務報表</h3>
         <button
           onClick={onExportPdf}
-          className="px-6 py-2 bg-blue-500 text-white font-semibold rounded-full shadow-md hover:bg-blue-600 transition duration-300 ease-in-out transform hover:scale-105"
+          // Updated button style to match FinancePage (1).jsx theme
+          className="px-6 py-3 bg-[#8B806E] text-white rounded-full hover:bg-[#A99A80] transition duration-300 ease-in-out shadow-lg text-lg font-semibold"
         >
-          匯出月報表 (PDF)
+          匯出為 PDF
         </button>
       </div>
       <div ref={monthlyReportRef} className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 p-4">
+        <h4 className="text-2xl font-bold mb-4 text-gray-700 text-center">月度財務總結</h4>
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-[#C9C2B2] text-white">
             <tr>
@@ -24,8 +26,8 @@ export default function MonthlyReportTable({ reportData, monthlyReportRef, onExp
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {reportData.length > 0 ? (
-              reportData.map(row => (
-                <tr key={row.month} className="hover:bg-gray-50 transition duration-150 ease-in-out">
+              reportData.map((row, index) => (
+                <tr key={index} className="hover:bg-gray-50 transition duration-150 ease-in-out">
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800">{row.month}</td>
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800 text-right">NT$ {row.total_revenue?.toLocaleString()}</td>
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800 text-right">NT$ {row.total_expenses?.toLocaleString()}</td>

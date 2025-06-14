@@ -1,6 +1,8 @@
 import React from 'react';
 
 export default function CustomerDetailModal({ customerData, onClose }) {
+  if (!customerData) return null;
+
   const { customer, invoices, payments } = customerData;
 
   return (
@@ -16,6 +18,7 @@ export default function CustomerDetailModal({ customerData, onClose }) {
           <p><strong>Email:</strong> {customer.email}</p>
         </div>
 
+        {/* 發票列表，設置最大高度並允許滾動 */}
         <div className="mb-8 max-h-80 overflow-y-auto">
           <h4 className="text-xl font-semibold mb-3 text-gray-700">相關發票</h4>
           {invoices.length > 0 ? (
@@ -43,7 +46,10 @@ export default function CustomerDetailModal({ customerData, onClose }) {
                       <td className="p-3 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                           ${inv.paid === '已付' ? 'bg-green-100 text-green-800' :
-                            (inv.paid === '未付' || inv.paid === '逾期' || inv.paid === '部分付款' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800')}`}>
+                            inv.paid === '部分付款' ? 'bg-yellow-100 text-yellow-800' : // Updated color for '部分付款'
+                            inv.paid === '逾期' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800' // Default
+                          }`}>
                           {inv.paid}
                         </span>
                       </td>
@@ -60,6 +66,7 @@ export default function CustomerDetailModal({ customerData, onClose }) {
           )}
         </div>
 
+        {/* 付款記錄列表，設置最大高度並允許滾動 */}
         <div className="mb-8 max-h-80 overflow-y-auto">
           <h4 className="text-xl font-semibold mb-3 text-gray-700">付款記錄</h4>
           {payments.length > 0 ? (

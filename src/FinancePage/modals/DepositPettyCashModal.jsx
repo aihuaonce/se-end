@@ -98,7 +98,7 @@ export default function DepositPettyCashModal({ onClose, onDepositSuccess, API_U
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-[#C9C2B2] text-white font-semibold rounded-full shadow-md hover:bg-[#B7B09F] transition duration-300 ease-in-out transform hover:scale-105"
+              className="px-6 py-2 bg-[#C9C2B2] text-white rounded-full font-semibold hover:bg-[#A99A80] transition duration-300 ease-in-out shadow-md"
               disabled={loading}
             >
               {loading ? '提交中...' : '確認存入'}

@@ -8,14 +8,15 @@ import DesignProcess from './ServicePages/DesignProcess';
 import CustomerPage from './pages/CustomerPage';
 import FinancePage from './FinancePage/FinancePage';
 import NotFoundPage from './pages/NotFoundPage';
-import LoginPage from './pages/LoginPage';
 import CustomerDetails from './ServicePages/CustomerDetail';
-import RegisterPage from './pages/RegisterPage';
 import PersonDataPage from "./pages/PersonDataPage";
 import BookingPage from "./pages/BookingPage";
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Sidebar from './components/Sidebar';
+
+import LoginModal from './modals/LoginModal';
+import RegisterModal from './modals/RegisterModal';
 
 function AppLayout() {
   const navigate = useNavigate();
@@ -27,16 +28,12 @@ function AppLayout() {
     }
   }, [location.pathname, navigate]);
 
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const isLoginPage = location.pathname === '/login';
+  const isRegisterPage = location.pathname === '/register';
 
-  if (isAuthPage) {
-    return (
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-      </Routes>
-    );
-  }
+  const handleCloseAuthModal = () => {
+    navigate('/');
+  };
 
   return (
     <div className="flex flex-col h-screen"> 
@@ -51,6 +48,9 @@ function AppLayout() {
       </div>
 
       <Footer />
+
+      {isLoginPage && <LoginModal onClose={handleCloseAuthModal} />}
+      {isRegisterPage && <RegisterModal onClose={handleCloseAuthModal} />}
     </div>
   );
 }
@@ -69,9 +69,9 @@ function App() {
           <Route path="booking" element={<BookingPage />} />
           <Route path="finance/*" element={<FinancePage />} />
           <Route path="*" element={<NotFoundPage />} />
+          <Route path="login" element={<div className="p-4 text-center text-gray-500">登入頁面背景內容...</div>} />
+          <Route path="register" element={<div className="p-4 text-center text-gray-500">註冊頁面背景內容...</div>} />
         </Route>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
       </Routes>
     </Router>
   );

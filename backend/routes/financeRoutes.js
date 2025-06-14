@@ -62,18 +62,18 @@ router.get('/invoices', async (req, res) => {
   try {
     const [rows] = await pool.execute(`
       SELECT
-          i.invoice_id AS id,             -- 發票ID (前端使用 id)
-          wp.project_name,                -- 婚禮專案名稱
+          i.invoice_id AS id,          -- 發票ID (前端使用 id)
+          wp.project_name,             -- 婚禮專案名稱
           i.customer_id,
           c.name AS customer_company_name, -- 客戶公司名稱
           c.contact_person AS customer_contact_person, -- 客戶負責人姓名
-          DATE_FORMAT(i.issue_date, '%Y-%m-%d') AS issueDate,     -- 開立日期
-          DATE_FORMAT(i.due_date, '%Y-%m-%d') AS dueDate,         -- 繳款截止日
+          DATE_FORMAT(i.issue_date, '%Y-%m-%d') AS issueDate,    -- 開立日期
+          DATE_FORMAT(i.due_date, '%Y-%m-%d') AS dueDate,        -- 繳款截止日
           i.total_amount AS amount,      -- 發票總金額
           i.amount_paid,                 -- 已付款金額
           i.status AS paid,              -- 發票狀態 (前端使用 paid)
           i.total_installments,          -- 預計分期數
-          (SELECT COUNT(payment_id) FROM customer_payments WHERE invoice_id = i.invoice_id AND status = '已付款') AS payments_count -- 計算已付款的次數
+          (SELECT COALESCE(COUNT(payment_id), 0) FROM customer_payments WHERE invoice_id = i.invoice_id AND status = '已付款') AS payments_count -- 計算已付款的次數
       FROM invoices i
       JOIN customers c ON i.customer_id = c.customer_id
       LEFT JOIN wedding_projects wp ON i.project_id = wp.project_id
@@ -92,6 +92,7 @@ router.get('/invoices', async (req, res) => {
  * @access Public
  */
 router.post('/process-payment', async (req, res) => {
+  // FIX: 將 paymentDate 的預設值修正為正確的日期格式，而不是只取年份
   const { invoiceId, paymentAmount, paymentMethod, paymentDate = new Date().toISOString().split('T')[0] } = req.body;
 
   if (!invoiceId || !paymentAmount || parseFloat(paymentAmount) <= 0 || !paymentMethod) {
@@ -115,27 +116,29 @@ router.post('/process-payment', async (req, res) => {
 
     const invoice = invoiceRows[0];
     const newAmountPaid = parseFloat(invoice.amount_paid) + parseFloat(paymentAmount);
-    let newStatus = invoice.status;
+    let newInvoiceStatus = invoice.status; // 注意：這裡使用 newInvoiceStatus，以區分發票狀態和付款記錄狀態
 
     if (newAmountPaid >= invoice.total_amount) {
-      newStatus = '已付';
+      newInvoiceStatus = '已付';
     } else if (newAmountPaid > 0 && newAmountPaid < invoice.total_amount) {
-      newStatus = '部分付款';
+      newInvoiceStatus = '部分付款';
     } else {
-      newStatus = '未付'; // 如果支付金額為0或無效，保持原狀態
+      newInvoiceStatus = '未付'; // 如果支付金額為0或無效，保持原狀態
     }
 
     // 2. 更新 invoices 表
     await connection.execute(
       `UPDATE invoices SET amount_paid = ?, status = ? WHERE invoice_id = ?`,
-      [newAmountPaid, newStatus, invoiceId]
+      [newAmountPaid, newInvoiceStatus, invoiceId]
     );
 
     // 3. 插入 customer_payments 表
+    // 將 payment_status 設為 '已付款'，表示這筆付款交易是成功的
+    const paymentStatusForRecord = '已付款';
     const [paymentResult] = await connection.execute(
       `INSERT INTO customer_payments (project_id, customer_id, invoice_id, payment_date, amount, method, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [invoice.project_id, invoice.customer_id, invoiceId, paymentDate, parseFloat(paymentAmount), paymentMethod, newStatus]
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [invoice.project_id, invoice.customer_id, invoiceId, paymentDate, parseFloat(paymentAmount), paymentMethod, paymentStatusForRecord]
     );
     const newPaymentId = paymentResult.insertId; // 獲取 MySQL 的 LAST_INSERT_ID()
 
@@ -143,7 +146,7 @@ router.post('/process-payment', async (req, res) => {
     const description = `收到發票 #${invoiceId} 的款項，方式: ${paymentMethod}`;
     const [journalEntryResult] = await connection.execute(
       `INSERT INTO journal_entries (entry_date, description, reference_id, reference_type)
-       VALUES (?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?)`,
       [paymentDate, description, newPaymentId.toString(), 'customer_payment']
     );
     const newJournalEntryId = journalEntryResult.insertId; // 獲取 MySQL 的 LAST_INSERT_ID()
@@ -171,19 +174,19 @@ router.post('/process-payment', async (req, res) => {
     // 5. 插入日記帳分錄明細 (借方：現金/銀行存款 - 增加)
     await connection.execute(
       `INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description)
-       VALUES (?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?)`,
       [newJournalEntryId, debitAccountId, parseFloat(paymentAmount), 0.00, `收到付款 (透過 ${paymentMethod})`]
     );
 
     // 6. 插入日記帳分錄明細 (貸方：應收帳款 - 減少)
     await connection.execute(
       `INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description)
-       VALUES (?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?)`,
       [newJournalEntryId, creditAccountId, 0.00, parseFloat(paymentAmount), `減少應收帳款 #${invoiceId}`]
     );
 
     await connection.commit(); // 提交事務
-    res.status(200).json({ message: '付款已成功處理並記錄', newStatus: newStatus, newAmountPaid: newAmountPaid });
+    res.status(200).json({ message: '付款已成功處理並記錄', newStatus: newInvoiceStatus, newAmountPaid: newAmountPaid }); // 返回發票的最新狀態
 
   } catch (error) {
     if (connection) {
@@ -234,7 +237,7 @@ router.get('/customers/:customerId/details', async (req, res) => {
     );
 
     if (customerInfo.length === 0) {
-      return res.status(404).json({ message: '找不到該客戶。' });
+      return res.status(404).json({ message: '找不到指定的客戶。' });
     }
 
     // 獲取該客戶的所有發票，並計算已收到的付款次數
@@ -247,7 +250,7 @@ router.get('/customers/:customerId/details', async (req, res) => {
           DATE_FORMAT(i.issue_date, '%Y-%m-%d') AS issueDate,
           DATE_FORMAT(i.due_date, '%Y-%m-%d') AS dueDate,
           i.total_installments,
-          (SELECT COUNT(payment_id) FROM customer_payments WHERE invoice_id = i.invoice_id AND status = '已付款') AS payments_count -- 計算已付款的次數
+          (SELECT COALESCE(COUNT(payment_id), 0) FROM customer_payments WHERE invoice_id = i.invoice_id AND status = '已付款') AS payments_count -- 計算已付款的次數
       FROM invoices i
       WHERE i.customer_id = ?
       ORDER BY i.issue_date DESC
@@ -297,9 +300,9 @@ router.get('/payments', async (req, res) => {
           cp.amount,
           cp.method,
           cp.status,
-          wp.project_name,           -- 婚禮專案名稱
-          c.name AS customer_name,   -- 客戶名稱
-          cp.invoice_id              -- 對應的發票ID
+          wp.project_name,          -- 婚禮專案名稱
+          c.name AS customer_name,  -- 客戶名稱
+          cp.invoice_id             -- 對應的發票ID
       FROM customer_payments cp
       LEFT JOIN wedding_projects wp ON cp.project_id = wp.project_id
       JOIN customers c ON cp.customer_id = c.customer_id
@@ -307,7 +310,8 @@ router.get('/payments', async (req, res) => {
       ORDER BY cp.payment_date DESC
     `);
     res.json(rows);
-  } catch (error) {
+  }
+  catch (error) {
     console.error('獲取付款紀錄時發生錯誤:', error);
     res.status(500).json({ message: '伺服器內部錯誤，無法獲取付款紀錄', error: error.message });
   }
@@ -323,26 +327,30 @@ router.get('/expenses', async (req, res) => {
     const [rows] = await pool.execute(`
       SELECT
           we.expense_id,
-          wp.project_name,                     -- 專案名稱
-          v.name AS vendor_name,               -- 供應商名稱
-          ec.name AS category_name,            -- 支出分類名稱
+          wp.project_name,            -- 專案名稱
+          v.name AS vendor_name,      -- 供應商名稱
+          ec.name AS category_name,   -- 支出分類名稱
           we.expense_item_description AS description, -- 支出項目描述
           we.amount,
           DATE_FORMAT(we.expense_date, '%Y-%m-%d') AS expense_date,
           we.vendor_invoice_number,
-          we.responsible_person,               -- 負責人
-          a.name AS accounting_account_name    -- 會計科目名稱
+          we.responsible_person,      -- 負責人
+          COALESCE(a.name, 'N/A') AS accounting_account_name     -- 會計科目名稱，使用 COALESCE 處理 NULL
       FROM wedding_expenses we
-      JOIN expense_categories ec ON we.category_id = ec.category_id
+      LEFT JOIN expense_categories ec ON we.category_id = ec.category_id
       LEFT JOIN vendors v ON we.vendor_id = v.vendor_id
       LEFT JOIN wedding_projects wp ON we.project_id = wp.project_id
-      LEFT JOIN accounts a ON we.accounting_account_id = a.account_id -- 新增 join 到 accounts 表
+      LEFT JOIN accounts a ON we.accounting_account_id = a.account_id
       ORDER BY we.expense_date DESC
     `);
     res.json(rows);
   } catch (error) {
+    // 增加更詳細的錯誤日誌
     console.error('獲取支出紀錄時發生錯誤:', error);
-    res.status(500).json({ message: '伺服器內部錯誤，無法獲取支出紀錄', error: error.message });
+    console.error('SQL Error Code:', error.code);
+    console.error('SQL Error Message:', error.sqlMessage);
+    console.error('Problematic SQL:', error.sql);
+    res.status(500).json({ message: '伺服器內部錯誤，無法獲取支出紀錄', error: error.message, sqlError: error.sqlMessage });
   }
 });
 
@@ -363,7 +371,7 @@ router.post('/expenses', async (req, res) => {
     payment_method,
     notes,
     responsible_person, // 負責人
-    accounting_account_id // 會計科目ID (用於費用)
+    accounting_account_id
   } = req.body;
 
   let connection;
@@ -371,23 +379,40 @@ router.post('/expenses', async (req, res) => {
     connection = await pool.getConnection();
     await connection.beginTransaction(); // 開始事務
 
+    // 處理可選的整數 ID，確保為 null 或有效數字
+    const parsedProjectId = project_id ? parseInt(project_id) : null;
+    const parsedVendorId = vendor_id ? parseInt(vendor_id) : null;
+    const parsedCategoryId = parseInt(category_id); // category_id 在 DB 中是 NOT NULL
+    const parsedAmount = parseFloat(amount); // amount 在 DB 中是 NOT NULL
+    // accounting_account_id 在 DB 中是可選的 INT
+    const parsedAccountingAccountId = accounting_account_id ? parseInt(accounting_account_id) : null;
+
+
+    // 驗證所有必要字段，並確保會計科目被正確選擇
+    if (!expense_item_description || isNaN(parsedAmount) || parsedAmount <= 0 || !expense_date ||
+      isNaN(parsedCategoryId) || parsedCategoryId === 0 || !payment_method ||
+      parsedAccountingAccountId === null || isNaN(parsedAccountingAccountId) || parsedAccountingAccountId === 0) {
+      return res.status(400).json({ message: '請填寫所有標示為必填的欄位，並確保金額和選擇有效。' });
+    }
+
+
     // 1. 插入到 wedding_expenses 表
     const [expenseResult] = await connection.execute(
       `INSERT INTO wedding_expenses
       (project_id, vendor_id, category_id, expense_item_description, amount, expense_date, vendor_invoice_number, payment_method, responsible_person, notes, accounting_account_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        project_id === null ? null : parseInt(project_id),
-        vendor_id === null ? null : parseInt(vendor_id),
-        parseInt(category_id),
+        parsedProjectId,
+        parsedVendorId,
+        parsedCategoryId,
         expense_item_description,
-        parseFloat(amount),
+        parsedAmount,
         expense_date,
         vendor_invoice_number,
         payment_method,
         responsible_person,
         notes,
-        parseInt(accounting_account_id) // 確保會計科目ID是數字
+        parsedAccountingAccountId
       ]
     );
     const newExpenseId = expenseResult.insertId;
@@ -409,7 +434,8 @@ router.post('/expenses', async (req, res) => {
     const newJournalEntryId = journalEntryResult.insertId;
 
     // 3. 確定借方會計科目 (費用科目) - 直接使用前端傳來的 ID
-    const debitAccountId = parseInt(accounting_account_id);
+    const debitAccountId = parsedAccountingAccountId;
+
 
     // 4. 確定貸方會計科目 (現金/銀行/應付帳款)
     let creditAccountId;
@@ -433,14 +459,14 @@ router.post('/expenses', async (req, res) => {
     await connection.execute(
       `INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description)
       VALUES (?, ?, ?, ?, ?)`,
-      [newJournalEntryId, debitAccountId, parseFloat(amount), 0.00, `支付 ${expense_item_description}`]
+      [newJournalEntryId, debitAccountId, parsedAmount, 0.00, `支付 ${expense_item_description}`]
     );
 
     // 6. 插入日記帳分錄明細 (貸方：支付帳戶科目)
     await connection.execute(
       `INSERT INTO journal_entry_lines (entry_id, account_id, debit_amount, credit_amount, line_description)
       VALUES (?, ?, ?, ?, ?)`,
-      [newJournalEntryId, creditAccountId, 0.00, parseFloat(amount), `透過 ${payment_method} 支付`]
+      [newJournalEntryId, creditAccountId, 0.00, parsedAmount, `透過 ${payment_method} 支付`]
     );
 
     await connection.commit(); // 提交事務
@@ -448,13 +474,16 @@ router.post('/expenses', async (req, res) => {
 
   } catch (error) {
     if (connection) {
-      await connection.rollback(); // 發生錯誤時回滾事務
+      await connection.rollback();
     }
     console.error('新增支出時發生錯誤:', error);
-    res.status(500).json({ message: '伺服器內部錯誤，無法新增支出', error: error.message });
+    console.error('SQL Error Code:', error.code);
+    console.error('SQL Error Message:', error.sqlMessage);
+    console.error('Problematic SQL:', error.sql);
+    res.status(500).json({ message: '伺服器內部錯誤，無法新增支出', error: error.message, sqlError: error.sqlMessage });
   } finally {
     if (connection) {
-      connection.release(); // 釋放連線
+      connection.release();
     }
   }
 });
@@ -610,7 +639,6 @@ router.get('/projects', async (req, res) => {
  */
 router.get('/accounts/expenses', async (req, res) => {
   try {
-    // 假設費用類科目在 'accounts' 表中 type 為 '費用'
     const [rows] = await pool.execute(`
       SELECT account_id, CONCAT(account_number, ' - ', name) AS display_name
       FROM accounts
@@ -632,12 +660,138 @@ router.get('/accounts/expenses', async (req, res) => {
  */
 router.get('/monthly-report', async (req, res) => {
   try {
-    // 確認視圖名稱為 monthly_financial_summary
-    const [rows] = await pool.execute(`SELECT month, total_revenue, total_expenses, net_profit_loss FROM monthly_financial_summary ORDER BY month DESC`);
+    // 修正: monthly_financial_summary 視圖中已經將月份格式化為 'month' 欄位
+    const [rows] = await pool.execute(`
+      SELECT
+        month, -- 直接使用視圖中的 'month' 欄位
+        total_revenue,
+        total_expenses,
+        net_profit_loss
+      FROM monthly_financial_summary
+      ORDER BY month ASC -- 直接使用視圖中的 'month' 欄位進行排序
+    `);
     res.json(rows);
   } catch (error) {
     console.error('獲取每月報表數據時發生錯誤:', error);
     res.status(500).json({ message: '伺服器內部錯誤，無法獲取每月報表數據', error: error.message });
+  }
+});
+
+/**
+ * @route GET /api/finance/expenses-by-category
+ * @desc 獲取各支出分類的總金額 (用於圓餅圖)
+ * @access Public
+ */
+router.get('/expenses-by-category', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT
+          ec.name AS category_name,
+          COALESCE(SUM(we.amount), 0) AS amount
+      FROM expense_categories ec
+      LEFT JOIN wedding_expenses we ON ec.category_id = we.category_id
+      GROUP BY ec.name
+      ORDER BY amount DESC;
+    `);
+    res.json(rows);
+  }
+  catch (error) {
+    console.error('獲取按類別劃分的支出數據時發生錯誤:', error);
+    res.status(500).json({ message: '伺服器內部錯誤，無法獲取按類別劃分的支出數據', error: error.message });
+  }
+});
+
+/**
+ * @route GET /api/finance/revenue-by-project
+ * @desc 獲取各專案的總營收 (用於長條圖)
+ * @access Public
+ */
+router.get('/revenue-by-project', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT
+          wp.project_name,
+          COALESCE(SUM(i.amount_paid), 0) AS total_revenue
+      FROM wedding_projects wp
+      LEFT JOIN invoices i ON wp.project_id = i.project_id AND i.status IN ('已付', '部分付款')
+      GROUP BY wp.project_name
+      ORDER BY total_revenue DESC;
+    `);
+    res.json(rows);
+  } catch (error) {
+    console.error('獲取按專案劃分的營收數據時發生錯誤:', error);
+    res.status(500).json({ message: '伺服器內部錯誤，無法獲取按專案劃分的營收數據', error: error.message });
+  }
+});
+
+/**
+ * @route GET /api/finance/invoice-payment-methods
+ * @desc 獲取客戶付款方式分佈數據
+ * @access Public
+ */
+router.get('/invoice-payment-methods', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT
+          method,
+          COALESCE(SUM(amount), 0) AS total_amount
+      FROM customer_payments
+      WHERE status = '已付款' -- 僅統計已付款的交易
+      GROUP BY method
+      ORDER BY total_amount DESC;
+    `);
+    res.json(rows);
+  } catch (error) {
+    console.error('獲取付款方式分佈數據時發生錯誤:', error);
+    res.status(500).json({ message: '伺服器內部錯誤，無法獲取付款方式分佈數據', error: error.message });
+  }
+});
+
+/**
+ * @route GET /api/finance/invoice-status-distribution
+ * @desc 獲取發票狀態分佈數據
+ * @access Public
+ */
+router.get('/invoice-status-distribution', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT
+          status,
+          COUNT(invoice_id) AS count
+      FROM invoices
+      GROUP BY status
+      ORDER BY count DESC;
+    `);
+    res.json(rows);
+  } catch (error) {
+    console.error('獲取發票狀態分佈數據時發生錯誤:', error);
+    res.status(500).json({ message: '伺服器內部錯誤，無法獲取發票狀態分佈數據', error: error.message });
+  }
+});
+
+/**
+ * @route GET /api/finance/top-customers-by-revenue
+ * @desc 獲取前N大客戶的營收數據 (預設前5大)
+ * @access Public
+ */
+router.get('/top-customers-by-revenue', async (req, res) => {
+  const limit = parseInt(req.query.limit) || 5; // 可選參數，預設前5名
+  try {
+    const [rows] = await pool.execute(`
+      SELECT
+          c.name AS customer_name,
+          COALESCE(SUM(cp.amount), 0) AS total_revenue
+      FROM customers c
+      JOIN customer_payments cp ON c.customer_id = cp.customer_id
+      WHERE cp.status = '已付款'
+      GROUP BY c.customer_id, c.name
+      ORDER BY total_revenue DESC
+      LIMIT ?;
+    `, [limit]); // 使用參數化查詢傳遞 LIMIT 值，避免 SQL 注入
+    res.json(rows);
+  } catch (error) {
+    console.error('獲取前N大客戶營收數據時發生錯誤:', error);
+    res.status(500).json({ message: '伺服器內部錯誤，無法獲取前N大客戶營收數據', error: error.message });
   }
 });
 

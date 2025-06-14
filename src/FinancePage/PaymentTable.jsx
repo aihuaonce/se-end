@@ -8,13 +8,13 @@ export default function PaymentTable({ payments }) {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-[#C9C2B2] text-white">
             <tr>
-              <th className="p-3 text-left text-sm font-semibold tracking-wider ">付款編號</th>
-              <th className="p-3 text-left text-sm font-semibold tracking-wider">專案名稱</th>
+              <th className="p-3 text-left text-sm font-semibold tracking-wider rounded-tl-lg">付款ID</th> {/* Changed from 付款編號 to 付款ID */}
               <th className="p-3 text-left text-sm font-semibold tracking-wider">客戶名稱</th>
-              <th className="p-3 text-left text-sm font-semibold tracking-wider">付款日期</th>
+              <th className="p-3 text-left text-sm font-semibold tracking-wider">對應發票</th> {/* Added this column */}
+              <th className="p-3 text-left text-sm font-semibold tracking-wider">專案名稱</th>
+              <th className="p-3 text-left text-sm font-semibold tracking-wider">日期</th> {/* Changed from 付款日期 to 日期 */}
               <th className="p-3 text-right text-sm font-semibold tracking-wider">金額</th>
               <th className="p-3 text-left text-sm font-semibold tracking-wider">方式</th>
-              <th className="p-3 text-left text-sm font-semibold tracking-wider">發票號碼</th>
               <th className="p-3 text-left text-sm font-semibold tracking-wider rounded-tr-lg">狀態</th>
             </tr>
           </thead>
@@ -23,14 +23,18 @@ export default function PaymentTable({ payments }) {
               payments.map(p => (
                 <tr key={p.payment_id} className="hover:bg-gray-50 transition duration-150 ease-in-out">
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.payment_id}</td>
+                  <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.customer_name}</td>
+                  <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.invoice_id || 'N/A'}</td> {/* Added data for new column */}
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.project_name || 'N/A'}</td>
-                  <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.customer_name || 'N/A'}</td>
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.payment_date}</td>
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800 text-right">NT$ {p.amount?.toLocaleString()}</td>
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.method}</td>
-                  <td className="p-3 whitespace-nowrap text-sm text-gray-800">{p.invoice_id || 'N/A'}</td>
                   <td className="p-3 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${p.status === '已付款' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                      ${p.status === '已付款' ? 'bg-green-100 text-green-800' : // Consistent with FinancePage (1).jsx for "已付款"
+                        p.status === '處理中' ? 'bg-blue-100 text-blue-800' : // Added "處理中" status as seen in FinancePage (1).jsx
+                        'bg-red-100 text-red-800' // Default for other statuses
+                      }`}>
                       {p.status}
                     </span>
                   </td>

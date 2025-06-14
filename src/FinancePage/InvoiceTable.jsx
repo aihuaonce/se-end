@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function InvoiceTable({ invoices, onInitiatePayment, API_URL }) {
+export default function InvoiceTable({ invoices, onInitiatePayment }) { // Removed API_URL prop as it's not used directly here
   const handlePrintInvoice = async (invoice) => {
     if (typeof window.jsPDF === 'undefined' || typeof window.html2canvas === 'undefined') {
       console.error("PDF export libraries not loaded yet.");
@@ -12,7 +12,7 @@ export default function InvoiceTable({ invoices, onInitiatePayment, API_URL }) {
       <div style="font-family: 'Inter', sans-serif; padding: 20px; color: #333; width: 210mm; min-height: 297mm; margin: 0 auto; box-sizing: border-box; background-color: white;">
         <h1 style="text-align: center; color: #C9C2B2; margin-bottom: 20px;">發票 #${invoice.id}</h1>
         <div style="margin-bottom: 20px;">
-          <p><strong>公司名稱:</strong> ${invoice.customer_company_name}</p>
+          <p><strong>公司名稱:</strong> ${invoice.customer_company_name}</p> <!-- Updated to use dynamic customer_company_name -->
           <p><strong>負責人姓名:</strong> ${invoice.customer_contact_person || 'N/A'}</p>
           <p><strong>開立日期:</strong> ${invoice.issueDate}</p>
           <p><strong>繳款截止日:</strong> ${invoice.dueDate}</p>
@@ -104,25 +104,29 @@ export default function InvoiceTable({ invoices, onInitiatePayment, API_URL }) {
                   <td className="p-3 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                       ${inv.paid === '已付' ? 'bg-green-100 text-green-800' :
-                        (inv.paid === '未付' || inv.paid === '逾期' || inv.paid === '部分付款' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800')}`}>
+                        inv.paid === '部分付款' ? 'bg-yellow-100 text-yellow-800' : // Updated color for '部分付款'
+                        inv.paid === '逾期' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800' // Default
+                      }`}>
                       {inv.paid}
                     </span>
                   </td>
                   <td className="p-3 whitespace-nowrap text-sm text-gray-800">{inv.total_installments}</td>
-                  <td className="p-3 whitespace-nowrap text-center space-x-2">
-                    {(inv.paid === '未付' || inv.paid === '部分付款' || inv.paid === '逾期') && (
+                  <td className="p-3 whitespace-nowrap text-sm font-medium flex space-x-2 justify-center">
+                    {/* 只有在發票未完全付款時才顯示付款按鈕 */}
+                    {inv.paid !== '已付' && (
                       <button
                         onClick={() => onInitiatePayment(inv)}
-                        className="px-4 py-2 bg-green-500 text-white text-sm font-semibold rounded-full shadow-md hover:bg-green-600 transition duration-300 ease-in-out transform hover:scale-105"
+                        className="px-4 py-2 bg-[#8B806E] text-white rounded-full hover:bg-[#A99A80] transition duration-300 ease-in-out shadow-md"
                       >
                         付款
                       </button>
                     )}
                     <button
                       onClick={() => handlePrintInvoice(inv)}
-                      className="px-4 py-2 bg-blue-500 text-white text-sm font-semibold rounded-full shadow-md hover:bg-blue-600 transition duration-300 ease-in-out transform hover:scale-105"
+                      className="px-4 py-2 border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition duration-300 ease-in-out shadow-md"
                     >
-                      列印
+                      列印發票
                     </button>
                   </td>
                 </tr>
