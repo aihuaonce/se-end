@@ -453,7 +453,7 @@ function DesignProcessContent() { // 將函數名從 App 改為 DesignProcessCon
                       </td>
                       <td className="py-3 px-4 border-b border-slate-200 text-sm md:text-lg">
                         <div className="flex flex-col sm:flex-row justify-center items-center space-y-1 sm:space-y-0 sm:space-x-2">
-                          <Link to={`/customer/${c.id}`} className="inline-block w-full sm:w-auto text-center bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700 transition text-xs sm:text-sm">查看</Link>
+                          <Link to={`/process/${c.id}`} className="inline-block w-full sm:w-auto text-center bg-sky-600 text-white px-3 py-1 rounded hover:bg-sky-700 transition text-xs sm:text-sm">查看</Link>
                         </div>
                       </td>
                     </tr>
