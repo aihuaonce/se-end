@@ -1,19 +1,21 @@
-import React from 'react';
+import React from "react";
 
-function Footer() {
+const Footer = () => {
+  const styles = {
+    footer: {
+      textAlign: "center",
+      fontSize: "0.875rem", // 加大字體：從 0.625rem 調整到 0.875rem
+      color: "#cb8a90",
+      padding: "1rem", // 加大 padding 讓頁尾有更多空間
+      backgroundColor: "white", // 如果頁尾的背景色不是白色，可以明確設定
+    },
+  };
+
   return (
-    <footer style={{
-      backgroundColor: '#222',
-      padding: '20px',
-      textAlign: 'center',
-      borderTop: '1px solid #444',
-      marginTop: 'auto',
-      fontSize: '0.9em',
-      color: '#aaa',
-    }}>
-      <p>&copy; 2025 XX婚顧公司. All Rights Reserved. </p>
+    <footer style={styles.footer}>
+      © 2025 小高婚禮策劃 LoveEver After Weddings. All rights reserved.
     </footer>
   );
-}
+};
 
 export default Footer;
