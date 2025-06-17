@@ -14,6 +14,6 @@ router.get('/', async (req, res) => {
     console.error("取得婚禮專案資料時錯誤:", error);
     res.status(500).json({ message: '伺服器錯誤', error: error.message });
   }
-});
+}); 
 
 module.exports = router;
