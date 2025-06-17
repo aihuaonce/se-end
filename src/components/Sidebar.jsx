@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'; 
-import { DollarSign, Receipt, Users, Footprints, Calculator, Wallet, LineChart, Calendar, Phone, MessageSquare, Clock, Send, Lightbulb, FileText } from "lucide-react"; // 導入更多合適的圖標
+import { DollarSign, Receipt, Users, Footprints, Calculator, Wallet, LineChart, Calendar, Phone, MessageSquare, Clock, Send, Lightbulb, FileText, Briefcase} from "lucide-react"; // 導入更多合適的圖標
 
 export default function Sidebar() {
   const location = useLocation(); 
@@ -65,9 +65,9 @@ export default function Sidebar() {
             </Link>
           </li>
           <li> 
-            <Link to="/services/contracts-quotes" className={getLinkClassName('/services/contracts-quotes')}>
-              <FileText size={18} />
-              <span>合約報價</span>
+            <Link to="/vendor" className={getLinkClassName('/vendor')}>
+              <Briefcase size={14} />
+              <span>廠商推薦</span>
             </Link>
           </li>
 
