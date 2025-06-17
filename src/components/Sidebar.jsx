@@ -26,6 +26,13 @@ export default function Sidebar() {
               <span>排程</span>
             </Link>
           </li>
+          
+          <li> 
+            <Link to="/projectall" className={getLinkClassName('/projectall')}>
+              <Calendar size={18} />
+              <span>專案列表</span>
+            </Link>
+          </li>
 
           <li className="font-bold text-base mt-2 mb-1 pl-1" style={{ color: '#CB8A90' }}>  
             顧客
