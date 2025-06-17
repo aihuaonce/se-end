@@ -1,0 +1,54 @@
+.stage {
+    margin-bottom: 2rem;
+  }
+  
+  .stage h2 {
+    background-color: #f9f9f9;
+    color: #cb8a90;
+    padding: 0.75rem 1rem;
+    font-weight: bold;
+    font-size: 1.125rem;
+    border-left: 4px solid #cb8a90;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+  }
+  
+  .stage ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    padding: 0;
+    list-style: none;
+  }
+  
+  .stage li {
+    position: relative;
+    background-color: #fff5f5;
+    color: #742a2a;
+    border: 1px solid #e5e7eb;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    text-align: center;
+    word-break: break-word;
+  }
+  
+  .stage li:hover {
+    background-color: #fce7eb;
+  }
+  
+  .stage li.done {
+    background-color: #e6ffed;
+    color: #22543d;
+    text-decoration: line-through;
+  }
+  
+  .stage li.done::after {
+    content: '✅';
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    font-size: 1rem;
+  }

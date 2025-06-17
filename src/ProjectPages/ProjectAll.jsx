@@ -60,7 +60,7 @@ const ProjectAll = () => {
                   <td className="px-4 py-2">
                     <button
                       className="text-blue-600 hover:underline"
-                      onClick={() => navigate(`/projectall/${p.project_id}`)}
+                      onClick={() => navigate(`/projects/${p.project_id}`)}
                     >
                       查看
                     </button>
