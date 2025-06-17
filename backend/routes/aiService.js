@@ -18,4 +18,5 @@ const callGeminiAI = async (prompt) => {
   }
 };
 
+
 module.exports = { callGeminiAI };

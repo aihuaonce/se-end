@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSave, FiZap } from 'react-icons/fi'; // 引入更多圖標
+import { FiArrowLeft, FiSave, FiZap } from 'react-icons/fi'; // 引入圖標
 import moment from 'moment';
 
 function DesignProcessDetail() {
@@ -21,11 +21,11 @@ function DesignProcessDetail() {
     note: ''    // 偏好需求說明
   });
 
-  const [activeModal, setActiveModal] = useState(null); // 控制模態框顯示
-  const [isSavingPreferences, setIsSavingPreferences] = useState(false); // 儲存偏好狀態
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false); // AI 生成狀態
-  const [notification, setNotification] = useState(null); // 通知訊息狀態
-  const [aiResponseContent, setAIResponseContent] = useState(''); // AI 生成的內容
+  const [activeModal, setActiveModal] = useState(null);
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [aiResponseTableData, setAIResponseTableData] = useState(null); // 儲存解析後的 AI 表格數據
 
   const options = {
     zodiac: ['牡羊座', '金牛座', '雙子座', '巨蟹座', '獅子座', '處女座', '天秤座', '天蠍座', '射手座', '魔羯座', '水瓶座', '雙魚座'],
@@ -48,7 +48,7 @@ function DesignProcessDetail() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`http://localhost:5713/customers/${id}`);
+      const res = await fetch(`http://localhost:5713/customers/${id}`); // 確保這是你的後端 API 地址
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ message: "未知錯誤" }));
         throw new Error(errorData.message || '找不到客戶資料');
@@ -57,13 +57,14 @@ function DesignProcessDetail() {
       setCustomer(data);
 
       // 初始化 preferenceData 從客戶資料庫中已有的數據
+      // 新增 filter 處理，避免 "未提供" 或空字串被解析為有效選項
       setPreferenceData({
-        zodiac: data.horoscope ? data.horoscope.split('、') : [], // 假設數據庫存儲為 "星座1、星座2"
-        blood: data.blood_type ? data.blood_type.split('、') : [], // 假設數據庫存儲為 "血型1、血型2"
-        color: data.favorite_color || '',
-        season: data.favorite_season ? data.favorite_season.split('、') : [], // 假設數據庫存儲為 "季節1、季節2"
-        belief: data.beliefs_description || '',
-        note: data.needs_description || ''
+        zodiac: data.horoscope ? data.horoscope.split('、').filter(item => item.trim() !== '未提供' && item.trim() !== '') : [],
+        blood: data.blood_type ? data.blood_type.split('、').filter(item => item.trim() !== '未提供' && item.trim() !== '') : [],
+        color: data.favorite_color && data.favorite_color.trim() !== '' && data.favorite_color.trim() !== '未提供' ? data.favorite_color.trim() : '',
+        season: data.favorite_season ? data.favorite_season.split('、').filter(item => item.trim() !== '未提供' && item.trim() !== '') : [],
+        belief: data.beliefs_description && data.beliefs_description.trim() !== '' && data.beliefs_description.trim() !== '無' ? data.beliefs_description.trim() : '',
+        note: data.needs_description && data.needs_description.trim() !== '' && data.needs_description.trim() !== '無' ? data.needs_description.trim() : ''
       });
 
     } catch (err) {
@@ -79,7 +80,7 @@ function DesignProcessDetail() {
   }, [fetchCustomer]);
 
   // 處理偏好選擇 (checkbox)
-  const handlePreferenceChange = (category, value) => {
+  const handlePreferenceChange = useCallback((category, value) => {
     setPreferenceData(prev => {
       const current = prev[category] || [];
       const isSelected = current.includes(value);
@@ -95,7 +96,7 @@ function DesignProcessDetail() {
       }
       return { ...prev, [category]: newValues };
     });
-  };
+  }, []);
 
   // 儲存客戶偏好到資料庫
   const handleSavePreferences = async () => {
@@ -103,15 +104,16 @@ function DesignProcessDetail() {
     setNotification(null); // 清除舊通知
 
     try {
-      // 將 preferenceData 轉換為後端 API 期望的格式 (如果數據庫字段名不同)
+      // 將 preferenceData 轉換為後端 API 期望的格式 (將陣列轉換為字串儲存)
+      // 並確保空值轉換為 '未提供' 或 '無' 以符合 getValueOrFallback
       const dataToSave = {
         ...customer, // 保留其他客戶信息
-        horoscope: preferenceData.zodiac.join('、'), // 將陣列轉換為字串儲存
-        blood_type: preferenceData.blood.join('、'),
-        favorite_color: preferenceData.color,
-        favorite_season: preferenceData.season.join('、'),
-        beliefs_description: preferenceData.belief,
-        needs_description: preferenceData.note,
+        horoscope: preferenceData.zodiac.length > 0 ? preferenceData.zodiac.join('、') : '未提供',
+        blood_type: preferenceData.blood.length > 0 ? preferenceData.blood.join('、') : '未提供',
+        favorite_color: preferenceData.color.trim() !== '' ? preferenceData.color.trim() : '未提供',
+        favorite_season: preferenceData.season.length > 0 ? preferenceData.season.join('、') : '未提供',
+        beliefs_description: preferenceData.belief.trim() !== '' ? preferenceData.belief.trim() : '無',
+        needs_description: preferenceData.note.trim() !== '' ? preferenceData.note.trim() : '無',
       };
 
       const res = await fetch(`http://localhost:5713/customers/${id}`, {
@@ -137,21 +139,96 @@ function DesignProcessDetail() {
     }
   };
 
+  /**
+   * 解析 AI 返回的 Markdown 表格字符串為 JavaScript 物件陣列。
+   * 這裡會首先嘗試從 Markdown 程式碼區塊中提取內容。
+   * @param {string} markdownContent - 包含 Markdown 表格的字串。
+   * @returns {Array<{時間: string, 事件: string, 備註: string}> | null} 解析後的數據，如果格式不正確則返回 null。
+   */
+  const parseMarkdownTable = useCallback((markdownContent) => {
+    // Step 1: Try to extract content from a Markdown code block
+    // 這裡嘗試匹配 ```（後面可選跟著語言名如markdown）開頭的程式碼區塊，並提取其內容
+    // [\s\S]*? 匹配所有字符（包括換行符），非貪婪模式
+    const codeBlockMatch = markdownContent.match(/```(?:\w+)?\n([\s\S]*?)```/);
+    let contentToParse = markdownContent; // 預設為整個回應
+
+    if (codeBlockMatch && codeBlockMatch[1]) {
+        contentToParse = codeBlockMatch[1].trim(); // 提取並去除首尾空白
+        console.log("從 Markdown 程式碼區塊中提取內容成功。");
+    } else {
+        console.warn("未在 AI 回應中找到預期的 Markdown 程式碼區塊。嘗試直接解析整個內容。");
+        // 如果沒有找到程式碼區塊，則嘗試解析整個回應，但會觸發後續的格式檢查
+    }
+
+    const lines = contentToParse.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    // Step 2: Find the header line and separator line within the extracted content
+    let headerLineIndex = -1;
+    let separatorLineIndex = -1;
+
+    for (let i = 0; i < lines.length; i++) {
+        // 尋找包含三個特定列名的表頭行，且確保是有效的表格分隔線格式
+        if (lines[i].startsWith('|') && 
+            lines[i].includes('時間') && 
+            lines[i].includes('事件') && 
+            lines[i].includes('建議／備註')) {
+            // 檢查下一行是否是表格分隔線
+            if (i + 1 < lines.length && lines[i+1].match(/^\|-+\|-+\|-+\|$/)) {
+                 headerLineIndex = i;
+                 separatorLineIndex = i + 1;
+                 break; // 找到第一個表頭和分隔線就停止
+            }
+        }
+    }
+
+    if (headerLineIndex === -1 || separatorLineIndex === -1) {
+        console.warn("在提取的內容中未找到有效的 Markdown 表格格式（表頭或分隔線缺失）。內容片段：", contentToParse.substring(0, 200) + '...');
+        return null; // 沒有找到有效的表頭或分隔線
+    }
+
+    // 提取數據行 (從分隔線的下一行開始)
+    const dataRows = lines.slice(separatorLineIndex + 1);
+
+    const parsedData = dataRows.map(row => {
+      // 移除首尾的 '|' 並分割，然後過濾掉因 split 產生空字串（如果行是 "|val1|val2|"）
+      const cells = row.split('|').map(cell => cell.trim()).filter(cell => cell !== '');
+      if (cells.length === 3) { // 確保有三個欄位
+        return {
+          時間: cells[0],
+          事件: cells[1],
+          備註: cells[2]
+        };
+      }
+      console.warn("跳過格式不正確的表格行 (欄位數量不對):", row);
+      return null; // 格式不正確的行
+    }).filter(Boolean); // 過濾掉所有 null 值
+
+    if (parsedData.length === 0) {
+        console.warn("成功提取並解析 Markdown 表格，但表格中沒有數據行。");
+        // 這裡可以選擇返回 [] 而不是 null，如果希望顯示一個空表格而不是 "無法解析" 提示
+        return null; 
+    }
+
+    return parsedData;
+  }, []);
+
+
   // 呼叫 AI 生成流程
   const handleAIProcessGenerate = async () => {
     setIsGeneratingAI(true);
     setNotification(null); // 清除舊通知
-    setAIResponseContent(''); // 清空舊的 AI 回應
+    setAIResponseTableData(null); // 清空舊的 AI 表格數據
 
     try {
-      // 構建傳送給 AI 服務的數據，確保鍵名與後端 aiService.js 期望的一致
+      // 構建傳送給 AI 服務的數據，確保鍵名與後端 designProcess.js 期望的一致
+      // 同樣將空值轉換為後端 Prompt 中 getValueOrFallback 預期的值
       const aiRequestData = {
-        horoscope: preferenceData.zodiac.join('、'),
-        bloodType: preferenceData.blood.join('、'),
-        favoriteColor: preferenceData.color,
-        favoriteSeason: preferenceData.season.join('、'),
-        beliefsDescription: preferenceData.belief,
-        needsDescription: preferenceData.note,
+        horoscope: preferenceData.zodiac.length > 0 ? preferenceData.zodiac.join('、') : '未提供',
+        bloodType: preferenceData.blood.length > 0 ? preferenceData.blood.join('、') : '未提供',
+        favoriteColor: preferenceData.color.trim() !== '' ? preferenceData.color.trim() : '未提供',
+        favoriteSeason: preferenceData.season.length > 0 ? preferenceData.season.join('、') : '未提供',
+        beliefsDescription: preferenceData.belief.trim() !== '' ? preferenceData.belief.trim() : '無',
+        needsDescription: preferenceData.note.trim() !== '' ? preferenceData.note.trim() : '無',
       };
 
       const res = await fetch(`http://localhost:5713/api/design-process/generate-flow`, {
@@ -168,13 +245,21 @@ function DesignProcessDetail() {
         throw new Error(data.message || 'AI 生成流程失敗，請稍後再試');
       }
 
-      setAIResponseContent(data.result);
-      setNotification({ message: 'AI 婚禮流程生成成功！', type: 'success' });
+      // 嘗試解析 AI 返回的 Markdown 表格
+      const parsedTable = parseMarkdownTable(data.result);
+      if (parsedTable && parsedTable.length > 0) { // 確保解析出數據且不為空
+        setAIResponseTableData(parsedTable);
+        setNotification({ message: 'AI 婚禮流程生成成功！', type: 'success' });
+      } else {
+        // 如果無法解析為表格或表格為空，顯示警告
+        setAIResponseTableData(null); // 確保不顯示錯誤的表格
+        console.warn("AI 返回的內容無法解析為表格或表格為空:", data.result);
+      }
 
     } catch (err) {
       console.error('AI 流程生成錯誤:', err);
       setNotification({ message: err.message || 'AI 婚禮流程生成失敗。', type: 'error' });
-      setAIResponseContent('無法生成流程：' + (err.message || '未知錯誤'));
+      setAIResponseTableData(null); // 清空數據，確保錯誤時不顯示舊表格
     } finally {
       setIsGeneratingAI(false);
     }
@@ -334,13 +419,40 @@ function DesignProcessDetail() {
           </button>
         </div>
 
-        {/* AI 回應顯示區 */}
-        {aiResponseContent && (
-          <div className="mt-8 p-6 bg-slate-50 border border-slate-200 rounded-lg shadow-inner">
+        {/* AI 回應顯示區 - 渲染為表格 */}
+        {aiResponseTableData && aiResponseTableData.length > 0 && (
+          <div className="mt-8 p-6 bg-slate-50 border border-slate-200 rounded-lg shadow-inner overflow-x-auto">
             <h2 className="text-xl font-semibold text-slate-700 mb-4">AI 生成的婚禮流程：</h2>
-            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: aiResponseContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }} />
-            {/* 使用 dangerouslySetInnerHTML 來渲染 AI 回應中的 Markdown，並替換換行符 */}
+            <table className="min-w-full divide-y divide-slate-300 border border-slate-200">
+              <thead className="bg-slate-200">
+                <tr>
+                  <th scope="col" className="px-4 py-2 text-left text-sm font-semibold text-slate-700">時間</th>
+                  <th scope="col" className="px-4 py-2 text-left text-sm font-semibold text-slate-700">事件</th>
+                  <th scope="col" className="px-4 py-2 text-left text-sm font-semibold text-slate-700">建議／備註</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {aiResponseTableData.map((row, index) => (
+                  <tr key={index} className="hover:bg-slate-100">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-slate-800">{row.時間}</td>
+                    <td className="px-4 py-2 whitespace-normal text-sm text-slate-800">{row.事件}</td>
+                    {/* 這裡可以將備註中的 Markdown 簡單處理，例如加粗，換行符 */}
+                    <td 
+                      className="px-4 py-2 whitespace-normal text-sm text-slate-800"
+                      dangerouslySetInnerHTML={{ __html: row.備註.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }}
+                    />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        )}
+        {/* 如果 AI 回應解析失敗，但有原始內容，可以考慮顯示原始內容或提示 */}
+        {isGeneratingAI === false && aiResponseTableData === null && notification && notification.type === 'warning' && (
+           <div className="mt-4 text-center text-red-600">
+             {notification.message}
+             <p className="text-sm text-gray-500 mt-2">AI 生成成功，但流程表格式異常。請檢查控制台錯誤或嘗試調整輸入，讓 AI 能更精準理解您的要求。</p>
+           </div>
         )}
       </div>
     </div>
