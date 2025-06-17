@@ -11,28 +11,36 @@ import CustomerDetails from './pages/CustomerDetail';
 import RegisterPage from './pages/RegisterPage';
 import PersonDataPage from "./pages/PersonDataPage";
 import BookingPage from "./pages/BookingPage";
+import AdminChatPage from "./pages/AdminChatPage";
 import Header from './components/Header';
 import Footer from './components/Footer';
+import Sidebar from './components/Sidebar';
 
 function App() {
   return (
     <Router>
-      {<Header />}
-      <main style={{ flexGrow: 1 }}>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/service" element={<ServicePage />} />
-          <Route path="/customer" element={<CustomerPage />} />
-          <Route path="/finance" element={<FinancePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/customer/:id" element={<CustomerDetails />} />
-          <Route path="*" element={<NotFoundPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/persondata" element={<PersonDataPage />} />
-          <Route path="/booking" element={<BookingPage />} />
-        </Routes>
-      </main>
-      {<Footer />}
+      <div className="flex flex-col h-screen">
+        {<Header />}
+        <div className="flex flex-grow">
+          <Sidebar />
+          <main className="flex-grow p-4 overflow-y-auto">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/service" element={<ServicePage />} />
+              <Route path="/customer" element={<CustomerPage />} />
+              <Route path="/finance" element={<FinancePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/customer/:id" element={<CustomerDetails />} />
+              <Route path="*" element={<NotFoundPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/persondata" element={<PersonDataPage />} />
+              <Route path="/booking" element={<BookingPage />} />
+              <Route path="/admin/chat" element={<AdminChatPage />} />
+            </Routes>
+          </main>
+        </div>
+        {<Footer />}
+      </div>
     </Router>
   );
 }

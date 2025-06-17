@@ -10,6 +10,7 @@ const syncRoutes = require('./routes/syncRoutes');
 const statusRoutes = require('./routes/statusRoutes');
 const joinRoutes = require('./routes/joinRoutes');
 const reserveRoutes = require('./routes/reserveRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 const app = express();
 
@@ -23,9 +24,12 @@ app.use('/sync-sheet-data', syncRoutes);
 app.use('/update-status', statusRoutes);
 app.use('/', joinRoutes);
 app.use('/', reserveRoutes); // ✅ 改成根目錄，代表請求 POST /reserve 就會命中這個路由
+app.use('/api/chat', chatRoutes);
 
 // 啟動伺服器
 const PORT = process.env.PORT || 5713;
 app.listen(PORT, () => {
     console.log(`伺服器運行在埠號 ${PORT}`);
+    console.log('chatRoutes:', chatRoutes);
+
 });
