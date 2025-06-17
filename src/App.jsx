@@ -5,6 +5,7 @@ import './App.css';
 import HomePage from './pages/HomePages';
 import ServicePageContent from './ServicePages/ServicePage';
 import DesignProcess from './ServicePages/DesignProcess';
+import DesignProcessDetail from './ServicePages/DesignProcessDetail';
 import CustomerPage from './pages/CustomerPage';
 import FinancePage from './FinancePage/FinancePage';
 import NotFoundPage from './pages/NotFoundPage';
@@ -63,6 +64,7 @@ function App() {
           <Route index element={<HomePage />} /> 
           <Route path="service" element={<ServicePageContent />} />
           <Route path="process" element={<DesignProcess />} />
+          <Route path="process/:id" element={<DesignProcessDetail />} />
           <Route path="customer" element={<CustomerPage />} />
           <Route path="customer/:id" element={<CustomerDetails />} />
           <Route path="persondata" element={<PersonDataPage />} />
