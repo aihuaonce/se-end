@@ -13,6 +13,7 @@ const financeRoutes = require('./routes/financeRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const designProcessRoutes = require('./routes/designProcess');
 const vendorRoutes = require('./routes/vendorRoutes');
+const designProcessRouter = require('./routes/designProcess'); // 請確認路徑正確
 
 
 const app = express();
@@ -27,11 +28,11 @@ app.use('/update-status', statusRoutes);
 app.use('/', joinRoutes);
 app.use('/', reserveRoutes);
 app.use('/api/finance', financeRoutes);
-app.use('/api/project', projectRoutes);
 app.use('/api/design-process', designProcessRoutes);
 app.use('/api/vendors', vendorRoutes);
+app.use('/api/projects', projectRoutes);
 
-const designProcessRouter = require('./routes/designProcess'); // 請確認路徑正確
+
 app.use('/api/design-process', designProcessRouter);
 
 // 啟動伺服器

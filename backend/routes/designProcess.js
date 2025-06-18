@@ -1,5 +1,3 @@
-// --- START OF FILE designProcess.js ---
-
 const express = require('express');
 const router = express.Router();
 const db = require('../db'); // 假設您的資料庫連線設定在 db.js
@@ -8,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 // 讀取範例模板 (這部分不變)
-const weddingProcessPath = path.join(__dirname, '../weddingProcess.json');
+const weddingProcessPath = path.join(__dirname, '../../src/data/weddingProcess.json');
 const weddingProcessJson = fs.readFileSync(weddingProcessPath, 'utf8');
 
 const getValueOrFallback = (value, fallbackText) => {
@@ -40,30 +38,30 @@ router.get('/:coupleId', async (req, res) => {
 
 // [新增] PUT /api/design-process/:coupleId - 更新/儲存手動編輯的流程
 router.put('/:coupleId', async (req, res) => {
-    const { coupleId } = req.params;
-    const { processData } = req.body; // 前端會傳來編輯後的流程陣列
+  const { coupleId } = req.params;
+  const { processData } = req.body; // 前端會傳來編輯後的流程陣列
 
-    if (!processData || !Array.isArray(processData)) {
-        return res.status(400).json({ success: false, message: '缺少或無效的流程資料 (processData)。' });
-    }
+  if (!processData || !Array.isArray(processData)) {
+    return res.status(400).json({ success: false, message: '缺少或無效的流程資料 (processData)。' });
+  }
 
-    try {
-        const processJsonString = JSON.stringify(processData);
+  try {
+    const processJsonString = JSON.stringify(processData);
 
-        const sql = `
+    const sql = `
             INSERT INTO ai_wedding_processes (wedding_couple_id, process_json)
             VALUES (?, ?)
             ON DUPLICATE KEY UPDATE process_json = VALUES(process_json), updated_at = CURRENT_TIMESTAMP;
         `;
-        await db.query(sql, [coupleId, processJsonString]);
-        
-        console.log(`[Backend] 已成功為 couple_id: ${coupleId} 手動更新流程。`);
-        res.json({ success: true, message: '婚禮流程已成功儲存！' });
+    await db.query(sql, [coupleId, processJsonString]);
 
-    } catch (error) {
-        console.error('[Backend] 手動儲存流程時發生錯誤:', error);
-        res.status(500).json({ success: false, message: '儲存流程失敗。' });
-    }
+    console.log(`[Backend] 已成功為 couple_id: ${coupleId} 手動更新流程。`);
+    res.json({ success: true, message: '婚禮流程已成功儲存！' });
+
+  } catch (error) {
+    console.error('[Backend] 手動儲存流程時發生錯誤:', error);
+    res.status(500).json({ success: false, message: '儲存流程失敗。' });
+  }
 });
 
 

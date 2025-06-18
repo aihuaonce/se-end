@@ -15,7 +15,7 @@ export default function Sidebar() {
   return (
     <div className="h-full w-40 bg-white flex flex-col flex-shrink-0" style={{ color: '#CB8A90' }}> 
 
-      <nav className="flex-1 overflow-y-auto w-full">
+    <nav className="flex-1 overflow-y-auto w-full">
       <ul className="space-y-0.5 p-1 text-xs w-full"> 
           <li className="font-bold text-base mt-2 mb-1 pl-1" style={{ color: '#CB8A90' }}> 
             專案
@@ -24,6 +24,13 @@ export default function Sidebar() {
             <Link to="/" className={getLinkClassName('/')}>
               <Calendar size={18} />
               <span>排程</span>
+            </Link>
+          </li>
+          
+          <li> 
+            <Link to="/projects" className={getLinkClassName('/projects')}>
+              <Calendar size={18} />
+              <span>專案列表</span>
             </Link>
           </li>
 

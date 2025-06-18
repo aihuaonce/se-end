@@ -16,6 +16,8 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import Sidebar from './components/Sidebar';
 import VendorPage from './ServicePages/VendorPage'; 
+import ProjectAll from './ProjectPages/ProjectAll';
+import ProjectDetailPage from './ProjectPages/ProjectDetailPage';
 
 import LoginModal from './modals/LoginModal';
 import RegisterModal from './modals/RegisterModal';
@@ -73,6 +75,8 @@ function App() {
           <Route path="finance/*" element={<FinancePage />} />
           <Route path="/vendor" element={<VendorPage />} />
           <Route path="*" element={<NotFoundPage />} />
+          <Route path="projects" element={<ProjectAll />} /> 
+          <Route path="/projects/:id" element={<ProjectDetailPage />} /> 
           <Route path="login" element={<div className="p-4 text-center text-gray-500">登入頁面背景內容...</div>} />
           <Route path="register" element={<div className="p-4 text-center text-gray-500">註冊頁面背景內容...</div>} />
         </Route>

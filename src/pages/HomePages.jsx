@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"; // 加入這行
 import "../styles/Home.css";
-
 
 export default function HomePages() {
   const [project, setProject] = useState([]);
+  const navigate = useNavigate(); // 初始化 useNavigate
 
-  // 第一次載入頁面時，從後端取得 menu 資料
   useEffect(() => {
-    fetch("http://localhost:5713/api/project") // ← 改成你實際的 API 位址
+    fetch("http://localhost:5713/api/project")
       .then((res) => {
         if (!res.ok) {
           throw new Error("資料載入失敗");
@@ -23,28 +23,10 @@ export default function HomePages() {
       });
   }, []);
 
-  // 當使用者點擊「選擇專案」
-  const handleSelect = async (index) => {
+
+  const handleSelect = (index) => {
     const selectedProject = project[index];
-
-    try {
-      const response = await fetch("http://localhost:5713/api/insert", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(selectedProject),
-      });
-
-      if (!response.ok) throw new Error("Insert failed");
-
-      const result = await response.json();
-      alert("專案已成功加入資料庫！");
-      console.log("Insert result:", result);
-    } catch (error) {
-      console.error("Error inserting project:", error);
-      alert("建立失敗，請稍後再試！");
-    }
+    navigate(`/create-project/${selectedProject.plan_id}`);
   };
 
   return (
