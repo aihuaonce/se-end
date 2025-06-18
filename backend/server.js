@@ -9,8 +9,9 @@ const serviceRoutes = require('./routes/service');
 const syncRoutes = require('./routes/syncRoutes');
 const statusRoutes = require('./routes/statusRoutes');
 const joinRoutes = require('./routes/joinRoutes');
-const reserveRoutes = require('./routes/reserveRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const customerRoutes = require('./routes/customer');
 
 const app = express();
 
@@ -23,8 +24,9 @@ app.use('/customers', serviceRoutes);
 app.use('/sync-sheet-data', syncRoutes);
 app.use('/update-status', statusRoutes);
 app.use('/', joinRoutes);
-app.use('/', reserveRoutes); // ✅ 改成根目錄，代表請求 POST /reserve 就會命中這個路由
+app.use('/api', bookingRoutes); 
 app.use('/api/chat', chatRoutes);
+app.use('/api', customerRoutes);
 
 // 啟動伺服器
 const PORT = process.env.PORT || 5713;

@@ -33,7 +33,7 @@ export default function Sidebar() {
             </Link>
           </li>
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
-            <Link to="/booking" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
+            <Link to="/reservations" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
               <Clock size={18} />
               <span>預約</span>
             </Link>

@@ -68,7 +68,7 @@ function AdminChatPage() {
 
     return (
         <div className="p-4">
-            <h2 className="text-2xl font-bold mb-4">訊息管理後台</h2>
+
             <div className="flex">
                 {/* 顧客列表 */}
                 <div className="w-1/3 border-r pr-4">
