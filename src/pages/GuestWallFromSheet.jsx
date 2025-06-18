@@ -13,15 +13,17 @@ function GuestWallFromSheet() {
     const [error, setError] = useState('');
 
     // 定義表格的列配置
+    // 這些鍵值應與後端從 Google Sheet 讀取後產生的物件鍵名一致
     const columns = [
         { key: 'name', label: '姓名', width: 'w-1/6' },
         { key: 'relation', label: '與新人的關係', width: 'w-1/6' },
         { key: 'email', label: 'Email', width: 'w-1/6' },
         { key: 'blessing_style_selection', label: '祝福風格選擇', width: 'w-1/6' }, // <-- 新增欄位顯示
-        { key: 'blessing_suggestion', label: '祝福語建議', width: 'w-1/5' }, 
-        { key: 'status', label: '狀態', width: 'w-[120px]' },
-        { key: 'blessing', label: '生成的祝福語', width: 'w-1/4' },
-        { key: 'video_url', label: '影片連結', width: 'w-1/4', render: (val) => val ? <a href={val} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-all">查看影片</a> : '無' },
+        { key: 'blessing_suggestion', label: '若想自己寫', width: 'w-1/5' }, // <-- 調整標籤以匹配 Google Sheet 中的 '若想自己寫，請輸入祝福語'
+        // 移除了 audio_consent 和 avatar_consent，因為它們不在 Google Sheet 的實際表頭中
+        { key: 'status', label: '狀態', width: 'w-[120px]' }, // 確保 Google Sheet 有此欄位
+        { key: 'blessing', label: '生成的祝福語', width: 'w-1/4' }, // 確保 Google Sheet 有此欄位
+        { key: 'video_url', label: '影片連結', width: 'w-1/4', render: (val) => val ? <a href={val} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-all">查看影片</a> : '無' }, // 確保 Google Sheet 有此欄位
         { key: 'photo_url', label: '照片連結', width: 'w-1/4', render: (val) => val ? <a href={val} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-all">查看照片</a> : '無' },
         { key: '_rowIndex', label: '索引', width: 'w-[60px]' }, // 顯示內部索引
     ];
@@ -100,7 +102,13 @@ function GuestWallFromSheet() {
             }
 
             const result = await response.json();
-            setMessage(`${actionName} 請求成功。結果: ${JSON.stringify(result)}`);
+            // 由於後端可能會返回錯誤訊息，這裡應該檢查 result.success
+            if (result.success) {
+                setMessage(`${actionName} 請求成功。`);
+            } else {
+                setError(`${actionName} 請求部分或全部失敗: ${result.message || '未知錯誤'}. 請檢查後端日誌。`);
+            }
+            
             setSelectedGuests(new Set()); // 清空選取
             fetchGuests(); // 重新載入數據以顯示最新狀態
         } catch (err) {
@@ -192,17 +200,19 @@ function GuestWallFromSheet() {
                                                 </td>
                                             ))}
                                             <td className="p-4 whitespace-nowrap text-sm">
+                                                {/* 單獨操作按鈕 - 生成祝福語 */}
                                                 <button
-                                                    onClick={() => handleGenerate('generateBlessing', '生成祝福語', [guest._rowIndex])}
+                                                    onClick={() => handleGenerate('generateBlessing', '生成祝福語', [guest._rowIndex])} // 傳遞單個賓客索引
                                                     className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium mr-2 mb-1 opacity-75 hover:opacity-100" 
-                                                    disabled={loading || selectedGuests.has(guest._rowIndex)} 
+                                                    disabled={loading} // 僅禁用全局 loading 狀態，不禁用單獨選中的按鈕
                                                 >
                                                     祝福
                                                 </button>
+                                                {/* 單獨操作按鈕 - 生成 AI 影片 */}
                                                 <button
-                                                    onClick={() => handleGenerate('generateAvatar', '生成 AI 影片', [guest._rowIndex])}
+                                                    onClick={() => handleGenerate('generateAvatar', '生成 AI 影片', [guest._rowIndex])} // 傳遞單個賓客索引
                                                     className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-medium opacity-75 hover:opacity-100" 
-                                                    disabled={loading || selectedGuests.has(guest._rowIndex)} 
+                                                    disabled={loading} // 僅禁用全局 loading 狀態，不禁用單獨選中的按鈕
                                                 >
                                                     影片
                                                 </button>

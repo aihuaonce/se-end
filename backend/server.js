@@ -20,7 +20,7 @@ if (dotenvResult.error) {
     process.exit(1);
 }
 
-// 檢查必要的環境變數 (第一次且唯一一次宣告 PORT)
+// 檢查必要的環境變數
 const PORT = process.env.PORT || 5713;
 const DB_HOST = process.env.DB_HOST;
 const DB_USER = process.env.DB_USER;
