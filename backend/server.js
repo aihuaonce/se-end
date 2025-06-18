@@ -14,7 +14,7 @@ const projectRoutes = require('./routes/projectRoutes');
 const designProcessRoutes = require('./routes/designProcess');
 const vendorRoutes = require('./routes/vendorRoutes');
 const designProcessRouter = require('./routes/designProcess'); // 請確認路徑正確
-
+const planRoutes = require('./routes/planRoutes');
 
 const app = express();
 
@@ -31,6 +31,7 @@ app.use('/api/finance', financeRoutes);
 app.use('/api/design-process', designProcessRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/plans', planRoutes);
 
 
 app.use('/api/design-process', designProcessRouter);

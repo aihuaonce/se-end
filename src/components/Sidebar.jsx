@@ -73,7 +73,7 @@ export default function Sidebar() {
           </li>
           <li> 
             <Link to="/vendor" className={getLinkClassName('/vendor')}>
-              <Briefcase size={14} />
+              <Briefcase size={18} />
               <span>廠商推薦</span>
             </Link>
           </li>

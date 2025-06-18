@@ -67,7 +67,7 @@ function App() {
           <Route index element={<HomePage />} /> 
           <Route path="service" element={<ServicePageContent />} />
           <Route path="process" element={<DesignProcess />} />
-          <Route path="process/:id" element={<DesignProcessDetail />} />
+          <Route path="/design-process/:id" element={<DesignProcessDetail />} />
           <Route path="customer" element={<CustomerPage />} />
           <Route path="customer/:id" element={<CustomerDetails />} />
           <Route path="persondata" element={<PersonDataPage />} />
