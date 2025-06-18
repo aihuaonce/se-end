@@ -18,13 +18,12 @@ function GuestWallFromSheet() {
         { key: 'name', label: '姓名', width: 'w-1/6' },
         { key: 'relation', label: '與新人的關係', width: 'w-1/6' },
         { key: 'email', label: 'Email', width: 'w-1/6' },
-        { key: 'blessing_style_selection', label: '祝福風格選擇', width: 'w-1/6' }, // <-- 新增欄位顯示
-        { key: 'blessing_suggestion', label: '若想自己寫', width: 'w-1/5' }, // <-- 調整標籤以匹配 Google Sheet 中的 '若想自己寫，請輸入祝福語'
-        // 移除了 audio_consent 和 avatar_consent，因為它們不在 Google Sheet 的實際表頭中
-        { key: 'status', label: '狀態', width: 'w-[120px]' }, // 確保 Google Sheet 有此欄位
-        { key: 'blessing', label: '生成的祝福語', width: 'w-1/4' }, // 確保 Google Sheet 有此欄位
-        { key: 'video_url', label: '影片連結', width: 'w-1/4', render: (val) => val ? <a href={val} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-all">查看影片</a> : '無' }, // 確保 Google Sheet 有此欄位
-        { key: 'photo_url', label: '照片連結', width: 'w-1/4', render: (val) => val ? <a href={val} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-all">查看照片</a> : '無' },
+        { key: 'blessing_style_selection', label: '祝福風格選擇', width: 'w-1/6' },
+        { key: 'blessing_suggestion', label: '若想自己寫', width: 'w-1/5' }, 
+        { key: 'status', label: '狀態', width: 'w-[120px]' },
+        { key: 'blessing', label: '生成的祝福語', width: 'w-1/4' },
+        { key: 'video_url', label: '影片連結', width: 'w-1/4', render: (val) => val ? <a href={val} target="_blank" rel="noopener noreferrer" className="text-stone-700 hover:underline break-all">查看影片</a> : '無' }, // 影片連結改為深棕色
+        { key: 'photo_url', label: '照片連結', width: 'w-1/4', render: (val) => val ? <a href={val} target="_blank" rel="noopener noreferrer" className="text-stone-700 hover:underline break-all">查看照片</a> : '無' }, // 照片連結改為深棕色
         { key: '_rowIndex', label: '索引', width: 'w-[60px]' }, // 顯示內部索引
     ];
 
@@ -120,9 +119,9 @@ function GuestWallFromSheet() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 p-8 font-inter"> 
+        <div className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 p-8 font-inter"> 
             <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden">
-                <header className="bg-teal-600 text-white p-6 text-center rounded-t-xl"> 
+                <header className="bg-stone-500 text-white p-6 text-center rounded-t-xl"> 
                     <h1 className="text-4xl font-bold mb-2">AI 賓客分身管理</h1>
                     <p className="text-lg">選擇賓客以生成祝福語或 AI 影片</p>
                 </header>
@@ -131,49 +130,49 @@ function GuestWallFromSheet() {
                     <div className="mb-6 flex flex-wrap gap-4 items-center">
                         <button
                             onClick={fetchGuests}
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50" 
+                            className="bg-stone-600 hover:bg-stone-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50" 
                             disabled={loading}
                         >
                             {loading ? '載入中...' : '重新載入賓客數據'}
                         </button>
                         <button
                             onClick={() => handleGenerate('generateBlessing', '生成祝福語')}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50" 
+                            className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50" 
                             disabled={loading || selectedGuests.size === 0}
                         >
                             {loading && message.includes('生成祝福語') ? '處理中...' : `生成祝福語 (${selectedGuests.size})`}
                         </button>
                         <button
                             onClick={() => handleGenerate('generateAvatar', '生成 AI 影片')}
-                            className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50" 
+                            className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50" 
                             disabled={loading || selectedGuests.size === 0}
                         >
                             {loading && message.includes('生成 AI 影片') ? '處理中...' : `生成 AI 影片 (${selectedGuests.size})`}
                         </button>
                     </div>
 
-                    {message && <div className="bg-blue-100 text-blue-700 p-4 rounded-lg mb-6 shadow-sm">{message}</div>}
+                    {message && <div className="bg-stone-100 text-stone-700 p-4 rounded-lg mb-6 shadow-sm">{message}</div>}
                     {error && <div className="bg-red-100 text-red-700 p-4 rounded-lg mb-6 shadow-sm">錯誤: {error}</div>}
 
                     <div className="overflow-x-auto rounded-lg shadow-lg">
                         <table className="min-w-full bg-white border-collapse">
-                            <thead className="bg-gray-100">
+                            <thead className="bg-stone-100">
                                 <tr>
-                                    <th className="p-4 border-b border-gray-200 text-left text-sm font-semibold text-gray-600 w-[40px] rounded-tl-lg">
+                                    <th className="p-4 border-b border-gray-200 text-left text-sm font-semibold text-stone-700 w-[40px] rounded-tl-lg">
                                         <input
                                             type="checkbox"
                                             onChange={handleSelectAll}
                                             checked={selectedGuests.size === guests.length && guests.length > 0}
                                             disabled={guests.length === 0}
-                                            className="rounded text-teal-600 focus:ring-teal-500" 
+                                            className="rounded text-stone-500 focus:ring-stone-400" 
                                         />
                                     </th>
                                     {columns.map(col => (
-                                        <th key={col.key} className={`p-4 border-b border-gray-200 text-left text-sm font-semibold text-gray-600 ${col.width}`}>
+                                        <th key={col.key} className={`p-4 border-b border-gray-200 text-left text-sm font-semibold text-stone-700 ${col.width}`}>
                                             {col.label}
                                         </th>
                                     ))}
-                                    <th className="p-4 border-b border-gray-200 text-left text-sm font-semibold text-gray-600 rounded-tr-lg w-[120px]">操作</th>
+                                    <th className="p-4 border-b border-gray-200 text-left text-sm font-semibold text-stone-700 rounded-tr-lg w-[120px]">操作</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -185,13 +184,13 @@ function GuestWallFromSheet() {
                                     </tr>
                                 ) : (
                                     guests.map(guest => (
-                                        <tr key={guest._rowIndex} className="hover:bg-gray-50 border-b border-gray-100">
+                                        <tr key={guest._rowIndex} className="hover:bg-stone-50 border-b border-gray-100">
                                             <td className="p-4 whitespace-nowrap">
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedGuests.has(guest._rowIndex)}
                                                     onChange={() => handleSelectGuest(guest._rowIndex)}
-                                                    className="rounded text-teal-600 focus:ring-teal-500" 
+                                                    className="rounded text-stone-500 focus:ring-stone-400" 
                                                 />
                                             </td>
                                             {columns.map(col => (
@@ -202,17 +201,17 @@ function GuestWallFromSheet() {
                                             <td className="p-4 whitespace-nowrap text-sm">
                                                 {/* 單獨操作按鈕 - 生成祝福語 */}
                                                 <button
-                                                    onClick={() => handleGenerate('generateBlessing', '生成祝福語', [guest._rowIndex])} // 傳遞單個賓客索引
-                                                    className="bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-medium mr-2 mb-1 opacity-75 hover:opacity-100" 
-                                                    disabled={loading} // 僅禁用全局 loading 狀態，不禁用單獨選中的按鈕
+                                                    onClick={() => handleGenerate('generateBlessing', '生成祝福語', [guest._rowIndex])}
+                                                    className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-xs font-medium mr-2 mb-1 opacity-75 hover:opacity-100" 
+                                                    disabled={loading}
                                                 >
                                                     祝福
                                                 </button>
                                                 {/* 單獨操作按鈕 - 生成 AI 影片 */}
                                                 <button
-                                                    onClick={() => handleGenerate('generateAvatar', '生成 AI 影片', [guest._rowIndex])} // 傳遞單個賓客索引
-                                                    className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-xs font-medium opacity-75 hover:opacity-100" 
-                                                    disabled={loading} // 僅禁用全局 loading 狀態，不禁用單獨選中的按鈕
+                                                    onClick={() => handleGenerate('generateAvatar', '生成 AI 影片', [guest._rowIndex])}
+                                                    className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-xs font-medium opacity-75 hover:opacity-100" 
+                                                    disabled={loading}
                                                 >
                                                     影片
                                                 </button>
