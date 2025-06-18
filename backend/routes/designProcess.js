@@ -1,3 +1,5 @@
+// --- START OF FILE designProcess.js ---
+
 const express = require('express');
 const router = express.Router();
 const db = require('../db'); // 假設您的資料庫連線設定在 db.js
@@ -13,8 +15,7 @@ const getValueOrFallback = (value, fallbackText) => {
   return (value && value.trim()) ? value.trim() : fallbackText;
 };
 
-
-// [新增] GET /api/design-process/:coupleId - 讀取已儲存的流程
+// [GET] /api/design-process/:coupleId - 讀取已儲存的流程
 router.get('/:coupleId', async (req, res) => {
   const { coupleId } = req.params;
 
@@ -25,8 +26,8 @@ router.get('/:coupleId', async (req, res) => {
     );
 
     if (rows.length > 0) {
-      // 找到流程，直接回傳 JSON 內容
-      res.json({ success: true, data: rows[0].process_json });
+      // 找到流程，解析 JSON 後再回傳，讓前端直接使用物件
+      res.json({ success: true, data: JSON.parse(rows[0].process_json) });
     } else {
       // 找不到流程
       res.status(404).json({ success: false, message: '尚未生成或儲存任何流程。' });
@@ -37,8 +38,36 @@ router.get('/:coupleId', async (req, res) => {
   }
 });
 
+// [新增] PUT /api/design-process/:coupleId - 更新/儲存手動編輯的流程
+router.put('/:coupleId', async (req, res) => {
+    const { coupleId } = req.params;
+    const { processData } = req.body; // 前端會傳來編輯後的流程陣列
 
-// [修改] POST /api/design-process/generate-flow - 生成、儲存並回傳流程
+    if (!processData || !Array.isArray(processData)) {
+        return res.status(400).json({ success: false, message: '缺少或無效的流程資料 (processData)。' });
+    }
+
+    try {
+        const processJsonString = JSON.stringify(processData);
+
+        const sql = `
+            INSERT INTO ai_wedding_processes (wedding_couple_id, process_json)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE process_json = VALUES(process_json), updated_at = CURRENT_TIMESTAMP;
+        `;
+        await db.query(sql, [coupleId, processJsonString]);
+        
+        console.log(`[Backend] 已成功為 couple_id: ${coupleId} 手動更新流程。`);
+        res.json({ success: true, message: '婚禮流程已成功儲存！' });
+
+    } catch (error) {
+        console.error('[Backend] 手動儲存流程時發生錯誤:', error);
+        res.status(500).json({ success: false, message: '儲存流程失敗。' });
+    }
+});
+
+
+// [POST] /api/design-process/generate-flow - 生成、儲存並回傳流程
 router.post('/generate-flow', async (req, res) => {
   // 從請求中獲取 coupleId 和偏好設定
   const { coupleId, ...preferences } = req.body;
@@ -48,7 +77,6 @@ router.post('/generate-flow', async (req, res) => {
   }
 
   try {
-    // --- 組 Prompt (與之前相同) ---
     const aiPrompt = `
       你是一位專業的婚禮流程設計師... (此處省略與之前版本相同的長篇 Prompt) ...
       **非常重要的輸出格式要求:**
@@ -69,9 +97,7 @@ router.post('/generate-flow', async (req, res) => {
     // --- 呼叫 Gemini AI ---
     const aiResponse = await callGeminiAI(aiPrompt);
 
-    // --- [新增] 將結果儲存到資料庫 ---
-    // 使用 INSERT ... ON DUPLICATE KEY UPDATE (UPSERT)
-    // 如果紀錄已存在則更新，不存在則新增。前提是 wedding_couple_id 是 UNIQUE KEY。
+    // --- 將結果儲存到資料庫 ---
     const sql = `
       INSERT INTO ai_wedding_processes (wedding_couple_id, process_json)
       VALUES (?, ?)
@@ -80,7 +106,7 @@ router.post('/generate-flow', async (req, res) => {
     await db.query(sql, [coupleId, aiResponse]);
     console.log(`[Backend] 已成功為 couple_id: ${coupleId} 儲存/更新 AI 流程。`);
 
-    // --- 回傳結果給前端 (不變) ---
+    // --- 回傳結果給前端 ---
     res.json({
       success: true,
       message: 'AI 已成功生成並儲存婚禮流程 🎉',
