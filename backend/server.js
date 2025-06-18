@@ -12,6 +12,7 @@ const reserveRoutes = require('./routes/reserveRoutes');
 const financeRoutes = require('./routes/financeRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const designProcessRoutes = require('./routes/designProcess');
+const vendorRoutes = require('./routes/vendorRoutes');
 
 
 const app = express();
@@ -28,6 +29,7 @@ app.use('/', reserveRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/project', projectRoutes);
 app.use('/api/design-process', designProcessRoutes);
+app.use('/api/vendors', vendorRoutes);
 
 // 啟動伺服器
 const PORT = process.env.PORT || 5713; // 從 .env 讀取埠號，如果沒有則預設 5713

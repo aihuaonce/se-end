@@ -10,17 +10,13 @@ export default function VendorDetailModal({ vendorData, onClose }) {
         
         <div className="space-y-3 text-gray-800 mb-6">
           <p><strong>類別:</strong> {vendorData.category}</p>
-          <p><strong>聯絡人:</strong> {vendorData.contactPerson}</p>
+          <p><strong>聯絡人:</strong> {vendorData.contact_person}</p> 
           <p><strong>電話:</strong> {vendorData.phone}</p>
           <p><strong>Email:</strong> {vendorData.email}</p>
           <p><strong>評分:</strong> {vendorData.rating} / 5</p>
-          <p><strong>價格區間:</strong> {vendorData.priceRange}</p>
           <p><strong>描述:</strong> {vendorData.description}</p>
           {vendorData.website && (
             <p><strong>網站:</strong> <a href={vendorData.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{vendorData.website}</a></p>
-          )}
-          {vendorData.portfolioLink && (
-            <p><strong>作品集:</strong> <a href={vendorData.portfolioLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">點此查看</a></p>
           )}
         </div>
 

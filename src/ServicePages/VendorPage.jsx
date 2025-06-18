@@ -1,164 +1,146 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import { Briefcase } from 'lucide-react'; // 引入適合廠商的圖標
 
-// 模擬 API URL，實際應用中這應該是你的後端地址
-const API_URL = 'http://localhost:5713'; 
+import VendorDetailModal from './modals/VendorDetailModal';
 
-// 模擬廠商數據 (MVP階段使用)
-const MOCK_VENDORS = [
-  {
-    id: 'V001',
-    name: '幸福時刻婚禮攝影',
-    category: '攝影師',
-    contactPerson: '陳小明',
-    phone: '0912-345678',
-    email: 'info@happyphoto.com',
-    rating: 4.8,
-    description: '捕捉您婚禮上每一個珍貴瞬間，風格自然溫馨。',
-    priceRange: 'NT$ 20,000 - 50,000',
-    website: 'https://www.happyphoto.com',
-    portfolioLink: 'https://photos.google.com/happyphoto'
-  },
-  {
-    id: 'V002',
-    name: '花漾年華花藝設計',
-    category: '花藝師',
-    contactPerson: '林美麗',
-    phone: '0933-555888',
-    email: 'info@flowerage.com',
-    rating: 4.7,
-    description: '提供客製化婚禮花藝設計，打造夢幻氛圍。',
-    priceRange: 'NT$ 15,000 - 40,000',
-    website: 'https://www.flowerage.com',
-    portfolioLink: 'https://instagram.com/flowerage'
-  },
-  {
-    id: 'V003',
-    name: '璀璨會館',
-    category: '場地',
-    contactPerson: '王經理',
-    phone: '02-87654321',
-    email: 'manager@brilliance.com',
-    rating: 4.9,
-    description: '豪華宴會廳，提供一站式婚宴服務。',
-    priceRange: 'NT$ 80,000 - 200,000 (per table)',
-    website: 'https://www.brilliance.com',
-    portfolioLink: null
-  },
-  {
-    id: 'V004',
-    name: '糖心烘焙',
-    category: '甜點',
-    contactPerson: '張師傅',
-    phone: '0977-111222',
-    email: 'info@sweetheart.com',
-    rating: 4.6,
-    description: '手工製作精緻婚禮蛋糕與甜點桌。',
-    priceRange: 'NT$ 8,000 - 25,000',
-    website: 'https://www.sweetheart.com',
-    portfolioLink: 'https://facebook.com/sweetheartbakery'
-  },
-  {
-    id: 'V005',
-    name: '幸福樂章樂團',
-    category: '音樂表演',
-    contactPerson: '李老師',
-    phone: '0900-999000',
-    email: 'info@happybeats.com',
-    rating: 4.5,
-    description: '專業婚禮樂團，營造浪漫溫馨氣氛。',
-    priceRange: 'NT$ 25,000 - 60,000',
-    website: 'https://www.happybeats.com',
-    portfolioLink: 'https://youtube.com/happybeats'
-  },
-  {
-    id: 'V006',
-    name: '愛戀婚紗',
-    category: '婚紗攝影',
-    contactPerson: '吳小姐',
-    phone: '0988-777666',
-    email: 'info@lovenew.com',
-    rating: 4.7,
-    description: '提供多樣化婚紗款式與專業攝影服務。',
-    priceRange: 'NT$ 30,000 - 80,000',
-    website: 'https://www.lovenew.com',
-    portfolioLink: 'https://www.lovenew.com/portfolio'
-  },
-  {
-    id: 'V007',
-    name: '雅緻新秘',
-    category: '新娘秘書',
-    contactPerson: '許雅琪',
-    phone: '0966-333444',
-    email: 'info@yazhi.com',
-    rating: 4.9,
-    description: '打造最適合您的獨特新娘造型。',
-    priceRange: 'NT$ 18,000 - 35,000',
-    website: 'https://www.yazhi.com',
-    portfolioLink: 'https://www.yazhi.com/work'
-  },
-];
+const API_URL = 'http://localhost:5713'; // 確保與後端伺服器端口一致
 
-
-// 引入廠商詳情彈窗組件
-import VendorDetailModal from './vendor-recommendation/modals/VendorDetailModal';
-
-
-export default function VendorRecommendationPage() {
-  const [allVendors, setAllVendors] = useState([]);
-  const [filteredVendors, setFilteredVendors] = useState([]);
+export default function VendorPage() {
+  const [allVendors, setAllVendors] = useState([]); // 從後端獲取的原始數據
+  const [filteredAndSearchedVendors, setFilteredAndSearchedVendors] = useState([]); // 經過篩選/搜尋後的數據
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all'); // 'all' or specific category
+  const [searchBy, setSearchBy] = useState('name');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState(null);
 
-  // 從模擬數據中提取所有獨特的類別
-  const allCategories = useMemo(() => {
-    const categories = new Set(MOCK_VENDORS.map(vendor => vendor.category));
-    return ['all', ...Array.from(categories)].sort(); // 'all'選項在前，其他按字母排序
-  }, []);
+  const [availableCategories, setAvailableCategories] = useState([]);
 
-  // 模擬數據加載
-  useEffect(() => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(7);
+
+  // 移除 selectedDate 相關狀態
+  // const [selectedDate, setSelectedDate] = useState(null);
+
+  // 獲取所有獨特類別 (從後端獲取)
+  const allCategories = useMemo(() => {
+    return ['all', ...availableCategories].sort();
+  }, [availableCategories]);
+
+
+  // ==== 數據獲取函式 ====
+  const fetchVendors = useCallback(async () => {
     setLoading(true);
     setError(null);
-    // 模擬 API 延遲
-    setTimeout(() => {
-      setAllVendors(MOCK_VENDORS);
+    try {
+      // 構建查詢參數
+      const params = new URLSearchParams();
+      if (filterCategory !== 'all') {
+        params.append('category', filterCategory);
+      }
+      if (searchQuery.trim()) {
+        params.append('query', searchQuery.trim());
+      }
+
+      // 呼叫後端 API
+      const response = await axios.get(`${API_URL}/api/vendors?${params.toString()}`);
+
+      // 數據庫返回的 ID 可能是 vendor_id，前端需要轉換為 id
+      const formattedVendors = response.data.map(vendor => ({
+        ...vendor,
+        id: vendor.vendor_id // 確保前端的 id 屬性存在
+      }));
+
+      setAllVendors(formattedVendors); // 設定從後端獲取的所有廠商
+      setFilteredAndSearchedVendors(formattedVendors); // 初始時，篩選後的數據就是所有數據
+    } catch (err) {
+      console.error('Error fetching vendors:', err);
+      setError('無法載入廠商資料，請稍後再試。');
+      setAllVendors([]);
+      setFilteredAndSearchedVendors([]);
+    } finally {
       setLoading(false);
-    }, 500); // 模擬 0.5 秒加載
+    }
+  }, [filterCategory, searchQuery]); // 依賴篩選類別和搜尋查詢，當這些變化時重新獲取數據
+
+  // 獲取類別列表
+  const fetchCategories = useCallback(async () => {
+    try {
+      // 假設後端有一個 /api/vendor-categories 接口來獲取所有類別
+      const response = await axios.get(`${API_URL}/api/vendors/categories`); // 修改為 /api/vendors/categories
+      setAvailableCategories(response.data);
+    } catch (err) {
+      console.error('Error fetching vendor categories:', err);
+      // 即使獲取失敗，也不影響主要數據
+    }
   }, []);
 
-  // 篩選和搜尋邏輯
+  // 組件載入時，先獲取類別，然後獲取廠商數據
   useEffect(() => {
+    fetchCategories();
+    fetchVendors();
+  }, [fetchCategories, fetchVendors]); // 依賴這些獲取函式
+
+  const filterAndSearchVendors = useCallback(() => {
     let result = allVendors;
 
-    // 1. 類別篩選
     if (filterCategory !== 'all') {
       result = result.filter(vendor => vendor.category === filterCategory);
     }
 
-    // 2. 搜尋查詢
     if (searchQuery.trim()) {
       const lowerCaseQuery = searchQuery.trim().toLowerCase();
-      result = result.filter(vendor =>
-        vendor.name.toLowerCase().includes(lowerCaseQuery) ||
-        vendor.category.toLowerCase().includes(lowerCaseQuery) ||
-        vendor.contactPerson.toLowerCase().includes(lowerCaseQuery)
-      );
+      result = result.filter(vendor => {
+        switch (searchBy) {
+          case 'name':
+            return (vendor.name && String(vendor.name).toLowerCase().includes(lowerCaseQuery));
+          case 'contact_person':
+            return vendor.contact_person && String(vendor.contact_person).toLowerCase().includes(lowerCaseQuery);
+          default:
+            return false;
+        }
+      });
     }
 
-    setFilteredVendors(result);
-  }, [allVendors, filterCategory, searchQuery]);
+    // 移除 selectedDate 相關篩選
+    // if (selectedDate) {
+    //   const selectedMonthYear = moment(selectedDate).format('YYYY-MM');
+    //   result = result.filter(vendor =>
+    //     vendor.created_at && moment(vendor.created_at).format('YYYY-MM') === selectedMonthYear
+    //   );
+    // }
+
+    setFilteredAndSearchedVendors(result);
+
+  }, [allVendors, filterCategory, searchQuery, searchBy]); // 移除 selectedDate 依賴
+
+  useEffect(() => {
+    filterAndSearchVendors();
+    setCurrentPage(1);
+  }, [allVendors, filterCategory, searchQuery, searchBy, filterAndSearchVendors]); // 移除 selectedDate 依賴
+
+  const vendorsToDisplay = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredAndSearchedVendors.slice(startIndex, endIndex);
+  }, [filteredAndSearchedVendors, currentPage, itemsPerPage]);
+
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredAndSearchedVendors.length / itemsPerPage);
+  }, [filteredAndSearchedVendors, itemsPerPage]);
 
 
   const handleSearchInputChange = (e) => {
     setSearchQuery(e.target.value);
+  };
+
+  const handleSearchByChange = (e) => {
+    setSearchBy(e.target.value);
   };
 
   const handleFilterCategoryChange = (e) => {
@@ -180,6 +162,27 @@ export default function VendorRecommendationPage() {
     setShowDetailModal(false);
   };
 
+  const getStatusColor = () => {
+      return 'hover:bg-slate-100';
+  };
+
+  // 移除 selectedDate 相關函式
+  // const handleMonthSelect = (date) => {
+  //   setSelectedDate(date);
+  //   setFilterCategory('all');
+  //   setSearchQuery('');
+  //   setSearchBy('name');
+  // };
+
+  // const handleClearCalendarFilter = useCallback(() => {
+  //   setSelectedDate(null);
+  // }, []);
+
+  const handlePageChange = (pageNumber) => {
+      if (pageNumber >= 1 && pageNumber <= totalPages) {
+          setCurrentPage(pageNumber);
+      }
+  };
 
   if (loading) {
     return (
@@ -198,93 +201,137 @@ export default function VendorRecommendationPage() {
   }
 
   return (
-    // 頁面根容器，讓它彈性填充 App.jsx 的 main 元素
-    <div className="bg-white flex flex-col w-full"> 
-      <h3 className="text-3xl font-bold mb-6 text-pink-700 flex items-center gap-2">
-        <Briefcase size={28} />
-        廠商推薦
-      </h3>
-
-      {/* 篩選和搜尋區域 */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6 items-stretch">
-        <input
-          type="text"
-          placeholder="搜尋廠商名稱、類別或聯絡人..."
-          value={searchQuery}
-          onChange={handleSearchInputChange}
-          className="flex-grow border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm md:text-base text-gray-800"
-        />
-        <select
-          value={filterCategory}
-          onChange={handleFilterCategoryChange}
-          className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 text-sm md:text-base flex-shrink-0"
-        >
-          {allCategories.map(category => (
-            <option key={category} value={category}>
-              {category === 'all' ? '所有類別' : category}
-            </option>
-          ))}
-        </select>
-        {(searchQuery || filterCategory !== 'all') && (
-          <button
-            onClick={handleClearFilters}
-            className="bg-gray-500 text-white px-4 py-2 rounded-md shadow hover:bg-gray-600 transition-colors duration-200 text-sm md:text-base flex-shrink-0"
-          >
-            清除篩選
-          </button>
-        )}
+    <div className="flex flex-col w-full h-full">
+          <div className="w-full max-w-screen-xl mx-auto flex flex-col md:flex-row flex-grow overflow-x-hidden">
+              <div className={`w-full md:w-3/4 bg-white shadow-lg rounded-lg p-6 md:p-8 mb-4 md:mb-0 md:mr-4 flex flex-col flex-grow`}>
+                  <div className="flex-grow">
+                      <div className="flex justify-between items-center mb-8">
+                          <h1 className="text-2xl md:text-3xl font-semibold text-slate-700 md:ml-0 mx-auto text-center">
+                              廠商推薦
+                              {searchQuery ? ` (搜尋: "${searchQuery}")` :
+                                  /* 移除日期篩選相關文字 */
+                                  ` (${filterCategory === 'all' ? '全部' : filterCategory})`}
+                          </h1>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2 mb-6 items-stretch">
+                          <input
+                              type="text"
+                              placeholder="輸入關鍵字搜尋 (廠商名稱 或 聯絡人)"
+                              value={searchQuery}
+                              onChange={handleSearchInputChange}
+                              className="flex-grow border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm md:text-base"
+                          />
+                          <select
+                              value={searchBy}
+                              onChange={handleSearchByChange}
+                              className="border border-slate-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-sky-500 text-black text-sm md:text-base flex-shrink-0"
+                          >
+                              <option value="name">廠商名稱</option>
+                              <option value="contact_person">聯絡人</option>
+                          </select>
+                          <select
+                              value={filterCategory}
+                              onChange={handleFilterCategoryChange}
+                              className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-800 text-sm md:text-base flex-shrink-0"
+                          >
+                              {allCategories.map(category => (
+                                  <option key={category} value={category}>
+                                      {category === 'all' ? '所有類別' : category}
+                                  </option>
+                              ))}
+                          </select>
+                          {(searchQuery || filterCategory !== 'all' /* 移除 selectedDate 相關條件 */) && (
+                              <button
+                                  onClick={() => {
+                                      setSearchQuery('');
+                                      setFilterCategory('all');
+                                      // 移除 selectedDate 相關設定
+                                      //setSelectedDate(null);
+                                  }}
+                                  className="bg-slate-500 text-white px-4 py-2 rounded-md shadow hover:bg-slate-600 transition-colors duration-200 text-sm md:text-base flex-shrink-0"
+                              >
+                                  清除所有篩選
+                              </button>
+                          )}
+                      </div>
+                      <div className="overflow-x-auto mt-6">
+                          <table className="w-full text-center border-collapse table-auto">
+                              <thead className="bg-pink-700 text-white">
+                                  <tr>
+                                      <th className="py-3 px-4 border-b border-slate-400 text-sm md:text-lg font-semibold">廠商名稱</th>
+                                      <th className="py-3 px-4 border-b border-slate-400 text-sm md:text-lg font-semibold">類別</th>
+                                      <th className="py-3 px-4 border-b border-slate-400 text-sm md:text-lg font-semibold">聯絡人</th>
+                                      <th className="py-3 px-4 border-b border-slate-400 text-sm md:text-lg font-semibold">聯絡電話</th>
+                                      <th className="py-3 px-4 border-b border-slate-400 text-sm md:text-lg font-semibold">評分</th>
+                                      <th className="py-3 px-4 border-b border-slate-400 text-sm md:text-lg font-semibold">操作</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {vendorsToDisplay.map((vendor, index) => (
+                                      <tr
+                                          key={vendor.id}
+                                          className={`${getStatusColor()}`}
+                                      >
+                                          <td className="py-3 px-4 border-b border-slate-200 text-black text-sm md:text-lg">{vendor.name}</td>
+                                          <td className="py-3 px-4 border-b border-slate-200 text-black text-sm md:text-lg">{vendor.category}</td>
+                                          <td className="py-3 px-4 border-b border-slate-200 text-black text-sm md:text-lg">{vendor.contact_person}</td>
+                                          <td className="py-3 px-4 border-b border-slate-200 text-black text-sm md:text-lg">{vendor.phone}</td>
+                                          <td className="py-3 px-4 border-b border-slate-200 text-black text-sm md:text-lg">{vendor.rating} / 5</td>
+                                          <td className="py-3 px-4 border-b border-slate-200 text-sm md:text-lg">
+                                              <div className="flex flex-col sm:flex-row justify-center items-center space-y-1 sm:space-y-0 sm:space-x-2">
+                                                  <button
+                                                      onClick={() => handleViewDetail(vendor)}
+                                                      className="inline-block w-full sm:w-auto text-center bg-pink-500 text-white px-3 py-1 rounded hover:bg-pink-600 transition text-xs sm:text-sm"
+                                                  >
+                                                      查看詳情
+                                                  </button>
+                                              </div>
+                                          </td>
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+                  {filteredAndSearchedVendors.length === 0 && !loading && (
+                      <p className="text-center text-slate-500 mt-8 text-lg">
+                          {searchQuery ? `找不到符合 "${searchQuery}" 的廠商資料。` :
+                              /* 移除日期篩選相關文字 */
+                                  '目前沒有廠商資料。'}
+                      </p>
+                  )}
+                  {filteredAndSearchedVendors.length > itemsPerPage && (
+                      <div className="flex justify-center items-center mt-6 space-x-2">
+                          <button
+                              onClick={() => handlePageChange(currentPage - 1)}
+                              disabled={currentPage === 1}
+                              className="px-3 py-1 border rounded-md shadow disabled:opacity-50 disabled:cursor-not-allowed bg-white hover:bg-gray-100 text-slate-700 text-sm md:text-base"
+                          >
+                              上一頁
+                          </button>
+                          <span className="text-slate-700 text-sm md:text-base">
+                              頁碼 {currentPage} / {totalPages}
+                          </span>
+                          <button
+                              onClick={() => handlePageChange(currentPage + 1)}
+                              disabled={currentPage === totalPages}
+                              className="px-3 py-1 border rounded-md shadow disabled:opacity-50 disabled:cursor-not-allowed bg-white hover:bg-gray-100 text-slate-700 text-sm md:text-base"
+                          >
+                              下一頁
+                          </button>
+                          <span className="text-slate-500 text-sm md:text-base ml-4">
+                              ({filteredAndSearchedVendors.length} 筆資料)
+                          </span>
+                      </div>
+                  )}
+              </div>
+          </div>
+          {showDetailModal && selectedVendor && (
+              <VendorDetailModal
+                  vendorData={selectedVendor}
+                  onClose={handleCloseDetailModal}
+              />
+          )}
       </div>
-
-      {/* 廠商列表表格 */}
-      <div className="overflow-x-auto bg-white rounded-lg shadow-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-pink-700 text-white">
-            <tr>
-              <th className="p-3 text-left text-sm font-semibold tracking-wider rounded-tl-lg">廠商名稱</th>
-              <th className="p-3 text-left text-sm font-semibold tracking-wider">類別</th>
-              <th className="p-3 text-left text-sm font-semibold tracking-wider">聯絡人</th>
-              <th className="p-3 text-left text-sm font-semibold tracking-wider">聯絡電話</th>
-              <th className="p-3 text-right text-sm font-semibold tracking-wider">評分</th>
-              <th className="p-3 text-center text-sm font-semibold tracking-wider rounded-tr-lg">操作</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredVendors.length > 0 ? (
-              filteredVendors.map(vendor => (
-                <tr key={vendor.id} className="hover:bg-gray-50 transition duration-150 ease-in-out text-gray-800">
-                  <td className="p-3 whitespace-nowrap text-sm">{vendor.name}</td>
-                  <td className="p-3 whitespace-nowrap text-sm">{vendor.category}</td>
-                  <td className="p-3 whitespace-nowrap text-sm">{vendor.contactPerson}</td>
-                  <td className="p-3 whitespace-nowrap text-sm">{vendor.phone}</td>
-                  <td className="p-3 whitespace-nowrap text-sm text-right">{vendor.rating} / 5</td>
-                  <td className="p-3 whitespace-nowrap text-center">
-                    <button
-                      onClick={() => handleViewDetail(vendor)}
-                      className="px-4 py-2 bg-pink-500 text-white text-sm font-semibold rounded-full shadow-md hover:bg-pink-600 transition duration-300 ease-in-out transform hover:scale-105"
-                    >
-                      查看詳情
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="6" className="p-4 text-center text-gray-500">
-                  {searchQuery || filterCategory !== 'all' ? '沒有找到符合條件的廠商。' : '目前沒有廠商數據。'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* 廠商詳情彈窗 */}
-      {showDetailModal && selectedVendor && (
-        <VendorDetailModal
-          vendorData={selectedVendor}
-          onClose={handleCloseDetailModal}
-        />
-      )}
-    </div>
   );
 }
