@@ -29,6 +29,9 @@ app.use('/api/finance', financeRoutes);
 app.use('/api/project', projectRoutes);
 app.use('/api/design-process', designProcessRoutes);
 
+const designProcessRouter = require('./routes/designProcess'); // 請確認路徑正確
+app.use('/api/design-process', designProcessRouter);
+
 // 啟動伺服器
 const PORT = process.env.PORT || 5713; // 從 .env 讀取埠號，如果沒有則預設 5713
 app.listen(PORT, () => {

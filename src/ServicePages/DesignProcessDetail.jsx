@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiArrowLeft, FiSave, FiZap } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiZap, FiRefreshCw } from 'react-icons/fi';
 import moment from 'moment';
 
 function DesignProcessDetail() {
@@ -20,6 +20,7 @@ function DesignProcessDetail() {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [notification, setNotification] = useState(null);
   const [aiResponseTableData, setAIResponseTableData] = useState([]);
+  const [hasSavedProcess, setHasSavedProcess] = useState(false);
 
   const options = {
     zodiac: ['牡羊座', '金牛座', '雙子座', '巨蟹座', '獅子座', '處女座', '天秤座', '天蠍座', '射手座', '魔羯座', '水瓶座', '雙魚座'],
@@ -34,31 +35,51 @@ function DesignProcessDetail() {
     }
   }, [notification]);
 
-  const fetchCustomer = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const fetchSavedProcess = useCallback(async (coupleId) => {
     try {
-      const res = await fetch(`http://localhost:5713/customers/${id}`);
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || '找不到客戶資料');
-      const data = await res.json();
-      setCustomer(data);
-      setPreferenceData({
-        zodiac: data.horoscope?.split('、').filter(item => item.trim() && item.trim() !== '未提供') || [],
-        blood: data.blood_type?.split('、').filter(item => item.trim() && item.trim() !== '未提供') || [],
-        color: (data.favorite_color?.trim() && data.favorite_color.trim() !== '未提供') ? data.favorite_color.trim() : '',
-        season: data.favorite_season?.split('、').filter(item => item.trim() && item.trim() !== '未提供') || [],
-        belief: (data.beliefs_description?.trim() && data.beliefs_description.trim() !== '無') ? data.beliefs_description.trim() : '',
-        note: (data.needs_description?.trim() && data.needs_description.trim() !== '無') ? data.needs_description.trim() : ''
-      });
+      const res = await fetch(`http://localhost:5713/api/design-process/${coupleId}`);
+      if (res.ok) {
+        const result = await res.json();
+        setAIResponseTableData(result.data || []);
+        setHasSavedProcess(true);
+      } else {
+        setHasSavedProcess(false);
+      }
     } catch (err) {
-      console.error("獲取客戶資料錯誤:", err);
-      setError("無法載入客戶資料：" + err.message);
-    } finally {
-      setLoading(false);
+      console.error("讀取已儲存的流程時發生網路錯誤:", err);
+      setHasSavedProcess(false);
     }
-  }, [id]);
+  }, []);
 
-  useEffect(() => { fetchCustomer(); }, [fetchCustomer]);
+  useEffect(() => {
+    const loadAllData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const customerRes = await fetch(`http://localhost:5713/customers/${id}`);
+        if (!customerRes.ok) throw new Error('找不到客戶資料');
+        const customerData = await customerRes.json();
+        setCustomer(customerData);
+        
+        setPreferenceData({
+          zodiac: customerData.horoscope?.split('、').filter(item => item.trim() && item.trim() !== '未提供') || [],
+          blood: customerData.blood_type?.split('、').filter(item => item.trim() && item.trim() !== '未提供') || [],
+          color: (customerData.favorite_color?.trim() && customerData.favorite_color.trim() !== '未提供') ? customerData.favorite_color.trim() : '',
+          season: customerData.favorite_season?.split('、').filter(item => item.trim() && item.trim() !== '未提供') || [],
+          belief: (customerData.beliefs_description?.trim() && customerData.beliefs_description.trim() !== '無') ? customerData.beliefs_description.trim() : '',
+          note: (customerData.needs_description?.trim() && customerData.needs_description.trim() !== '無') ? customerData.needs_description.trim() : ''
+        });
+
+        await fetchSavedProcess(id);
+      } catch (err) {
+        console.error("載入頁面資料錯誤:", err);
+        setError("無法載入資料：" + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadAllData();
+  }, [id, fetchSavedProcess]);
 
   const handlePreferenceChange = useCallback((category, value) => {
     setPreferenceData(prev => {
@@ -115,33 +136,21 @@ function DesignProcessDetail() {
         const jsonString = responseText.substring(startIndex, endIndex + 1);
         const parsedData = JSON.parse(jsonString);
         if (Array.isArray(parsedData) && parsedData.length > 0 && '時間' in parsedData[0] && '事件' in parsedData[0] && '備註' in parsedData[0]) {
-          console.log("解析成功：AI 回應符合 JSON 格式。");
           return parsedData;
         }
       }
-    } catch (e) {
-      console.warn("JSON 解析嘗試失敗，將降級至 Markdown 解析。錯誤:", e.message);
-    }
-
-    console.log("嘗試降級解析：Markdown 表格模式。");
+    } catch (e) { /* fallback */ }
     try {
       const codeBlockMatch = responseText.match(/```(?:\w+)?\n([\s\S]*?)```/);
       let contentToParse = codeBlockMatch ? codeBlockMatch[1].trim() : responseText;
-      
       const lines = contentToParse.split('\n').map(line => line.trim()).filter(line => line && line.startsWith('|'));
       if (lines.length < 2) return null;
-
       const headerLine = lines[0];
       const headerCells = headerLine.split('|').map(h => h.trim()).filter(Boolean);
       const timeIndex = headerCells.findIndex(h => h.includes('時間'));
       const eventIndex = headerCells.findIndex(h => h.includes('事件') || h.includes('流程'));
       const noteIndex = headerCells.findIndex(h => h.includes('備註') || h.includes('建議') || h.includes('內容'));
-
-      if (timeIndex === -1 || eventIndex === -1 || noteIndex === -1) {
-          console.error("Markdown 表頭缺少必要的欄位（時間、事件、備註）。");
-          return null;
-      }
-      
+      if (timeIndex === -1 || eventIndex === -1 || noteIndex === -1) { return null; }
       const dataRows = lines.slice(2);
       const parsedData = dataRows.map(row => {
         const cells = row.split('|').map(cell => cell.trim()).filter(Boolean);
@@ -154,17 +163,9 @@ function DesignProcessDetail() {
         }
         return null;
       }).filter(Boolean);
-
-      if (parsedData.length > 0) {
-        console.log("降級解析成功：AI 回應符合 Markdown 表格格式。");
-        return parsedData;
-      }
-    } catch (e) {
-      console.error("Markdown 解析也失敗了。錯誤:", e.message);
-    }
-
-    console.error("所有解析策略均失敗。無法從 AI 回應中提取流程表。");
-    console.error("原始回應內容:", responseText);
+      if (parsedData.length > 0) return parsedData;
+    } catch (e) { /* fallback */ }
+    console.error("所有解析策略均失敗。", { responseText });
     return null;
   }, []);
 
@@ -173,7 +174,14 @@ function DesignProcessDetail() {
     setNotification(null);
     setAIResponseTableData([]);
     try {
+      // [修改] 組合婚禮日期與時間
+      const weddingDateTime = (customer && customer.wedding_date && customer.wedding_time)
+        ? `${moment(customer.wedding_date).format('YYYY-MM-DD')} ${customer.wedding_time}`
+        : '';
+
       const aiRequestData = {
+        coupleId: id,
+        weddingDateTime: weddingDateTime, // 將組合好的時間傳遞
         horoscope: preferenceData.zodiac.join('、') || '未提供',
         bloodType: preferenceData.blood.join('、') || '未提供',
         favoriteColor: preferenceData.color.trim() || '未提供',
@@ -181,6 +189,7 @@ function DesignProcessDetail() {
         beliefsDescription: preferenceData.belief.trim() || '無',
         needsDescription: preferenceData.note.trim() || '無',
       };
+
       const res = await fetch(`http://localhost:5713/api/design-process/generate-flow`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -190,10 +199,10 @@ function DesignProcessDetail() {
       if (!res.ok) throw new Error(data.message || 'AI 生成失敗');
       
       const parsedData = universalParser(data.result);
-
       if (parsedData && parsedData.length > 0) {
         setAIResponseTableData(parsedData);
-        setNotification({ message: 'AI 婚禮流程生成成功！', type: 'success' });
+        setHasSavedProcess(true);
+        setNotification({ message: 'AI 婚禮流程生成並儲存成功！', type: 'success' });
       } else {
         setNotification({ message: 'AI 流程生成成功，但無法解析為有效的流程表。', type: 'warning' });
       }
@@ -203,6 +212,14 @@ function DesignProcessDetail() {
     } finally {
       setIsGeneratingAI(false);
     }
+  };
+
+  const renderMarkdown = (text) => {
+    if (!text) return { __html: '' };
+    const html = text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br/>');
+    return { __html: html };
   };
 
   if (loading) return <div className="flex justify-center items-center h-screen bg-gray-100"><p className="text-gray-600 text-xl">載入中...</p></div>;
@@ -216,31 +233,20 @@ function DesignProcessDetail() {
           {notification.message}
         </div>
       )}
-
       <div className="max-w-3xl mx-auto bg-white shadow-xl rounded-lg p-6 sm:p-8">
         <div className="flex justify-between items-center mb-6 border-b pb-4 border-slate-200">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center text-slate-600 hover:text-slate-800 transition-colors duration-200 text-sm sm:text-base"
-          >
+          <button onClick={() => navigate(-1)} className="flex items-center text-slate-600 hover:text-slate-800 transition-colors duration-200 text-sm sm:text-base">
             <FiArrowLeft className="mr-1 sm:mr-2 text-xl" />
             <span className="font-medium">返回</span>
           </button>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-700">流程設計</h1>
-          <button
-            onClick={handleSavePreferences}
-            className="flex items-center bg-sky-700 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-md shadow hover:bg-sky-800 transition-colors duration-200 disabled:opacity-50 text-sm sm:text-base"
-            disabled={isSavingPreferences}
-          >
+          <button onClick={handleSavePreferences} className="flex items-center bg-sky-700 text-white px-3 py-1 sm:px-4 sm:py-2 rounded-md shadow hover:bg-sky-800 transition-colors duration-200 disabled:opacity-50 text-sm sm:text-base" disabled={isSavingPreferences}>
             <FiSave className="mr-1 sm:mr-2" />
             {isSavingPreferences ? '儲存中...' : '儲存客戶偏好'}
           </button>
         </div>
-
         <div className="grid grid-cols-1 gap-4 mb-6 text-gray-700">
-          <p className="text-lg font-medium">
-            新人姓名：{customer.groom_name} & {customer.bride_name}
-          </p>
+          <p className="text-lg font-medium">新人姓名：{customer.groom_name} & {customer.bride_name}</p>
           <p>Email: {customer.email}</p>
           <p>電話: {customer.phone}</p>
           <p>婚禮日期: {customer.wedding_date ? moment(customer.wedding_date).format('YYYY-MM-DD HH:mm') : '未設定'}</p>
@@ -248,7 +254,6 @@ function DesignProcessDetail() {
           <p>Google 表單: {customer.form_link ? <a href={customer.form_link} target="_blank" rel="noopener noreferrer" className="text-sky-600 hover:underline break-all">連結</a> : '未提供'}</p>
           <p>狀態: <span className={`font-semibold ${customer.status === 'open' ? 'text-yellow-700' : 'text-green-700'}`}>{customer.status === 'open' ? '未結案' : '已結案'}</span></p>
         </div>
-
         <h2 className="text-[#CB8A90] text-xl font-semibold mb-3 border-t pt-4 mt-4 border-slate-200">傾向／嗜好：</h2>
         <div className="flex flex-wrap gap-3 mb-6">
           <button onClick={() => setActiveModal('zodiac')} className="bg-pink-500 text-white px-4 py-2 rounded hover:bg-pink-600 transition-colors">星座</button>
@@ -256,14 +261,12 @@ function DesignProcessDetail() {
           <button onClick={() => setActiveModal('color')} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors">顏色</button>
           <button onClick={() => setActiveModal('season')} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors">季節</button>
         </div>
-
         <div className="mb-8 text-gray-700 space-y-2 text-lg">
           {preferenceData.zodiac.length > 0 && <p><strong>星座：</strong>{preferenceData.zodiac.join('、')}</p>}
           {preferenceData.blood.length > 0 && <p><strong>血型：</strong>{preferenceData.blood.join('、')}</p>}
           {preferenceData.color && <p><strong>顏色：</strong>{preferenceData.color}</p>}
           {preferenceData.season.length > 0 && <p><strong>季節：</strong>{preferenceData.season.join('、')}</p>}
         </div>
-
         {activeModal && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50 p-4">
             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
@@ -274,27 +277,7 @@ function DesignProcessDetail() {
                 {activeModal === 'season' && '請選擇喜歡的季節（最多兩個）'}
               </h2>
               <div className="mb-6 space-y-2 max-h-60 overflow-y-auto">
-                {activeModal === 'color' ? (
-                  <input
-                    type="text"
-                    className="w-full border border-gray-300 rounded p-2 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    placeholder="例如：奶茶色、白+金…"
-                    value={preferenceData.color}
-                    onChange={(e) => setPreferenceData({ ...preferenceData, color: e.target.value })}
-                  />
-                ) : (
-                  options[activeModal]?.map((option) => (
-                    <label key={option} className="flex items-center cursor-pointer text-gray-700 hover:bg-gray-50 p-2 rounded">
-                      <input
-                        type="checkbox"
-                        className="form-checkbox h-5 w-5 text-sky-600 rounded mr-3"
-                        checked={preferenceData[activeModal]?.includes(option)}
-                        onChange={() => handlePreferenceChange(activeModal, option)}
-                      />
-                      <span className="text-lg">{option}</span>
-                    </label>
-                  ))
-                )}
+                {activeModal === 'color' ? (<input type="text" className="w-full border border-gray-300 rounded p-2 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="例如：奶茶色、白+金…" value={preferenceData.color} onChange={(e) => setPreferenceData({ ...preferenceData, color: e.target.value })}/>) : (options[activeModal]?.map((option) => (<label key={option} className="flex items-center cursor-pointer text-gray-700 hover:bg-gray-50 p-2 rounded"><input type="checkbox" className="form-checkbox h-5 w-5 text-sky-600 rounded mr-3" checked={preferenceData[activeModal]?.includes(option)} onChange={() => handlePreferenceChange(activeModal, option)}/><span className="text-lg">{option}</span></label>)))}
               </div>
               <div className="flex justify-end space-x-3">
                 <button onClick={() => setActiveModal(null)} className="bg-gray-300 text-gray-800 px-5 py-2 rounded-md hover:bg-gray-400 transition-colors">取消</button>
@@ -303,40 +286,16 @@ function DesignProcessDetail() {
             </div>
           </div>
         )}
-
         <h2 className="text-[#CB8A90] text-xl font-semibold mb-3">信仰 / 禁忌說明 (可空)：</h2>
-        <div className="mb-6">
-          <textarea
-            className="w-full border border-gray-300 rounded p-3 resize-y focus:outline-none focus:ring-2 focus:ring-sky-500 text-gray-700"
-            rows={4}
-            placeholder="例如：不可碰酒、不能穿紅色、需安排宗教儀式…"
-            value={preferenceData.belief}
-            onChange={(e) => setPreferenceData({ ...preferenceData, belief: e.target.value })}
-          />
-        </div>
-
+        <div className="mb-6"><textarea className="w-full border border-gray-300 rounded p-3 resize-y focus:outline-none focus:ring-2 focus:ring-sky-500 text-gray-700" rows={4} placeholder="例如：不可碰酒、不能穿紅色、需安排宗教儀式…" value={preferenceData.belief} onChange={(e) => setPreferenceData({ ...preferenceData, belief: e.target.value })}/></div>
         <h2 className="text-[#CB8A90] text-xl font-semibold mb-3">偏好 / 需求說明 (可空)：</h2>
-        <div className="mb-8">
-          <textarea
-            className="w-full border border-gray-300 rounded p-3 resize-y focus:outline-none focus:ring-2 focus:ring-sky-500 text-gray-700"
-            rows={4}
-            placeholder="例如：希望浪漫風格、不要主持人、需要中英文雙語婚禮…"
-            value={preferenceData.note}
-            onChange={(e) => setPreferenceData({ ...preferenceData, note: e.target.value })}
-          />
-        </div>
-
+        <div className="mb-8"><textarea className="w-full border border-gray-300 rounded p-3 resize-y focus:outline-none focus:ring-2 focus:ring-sky-500 text-gray-700" rows={4} placeholder="例如：希望浪漫風格、不要主持人、需要中英文雙語婚禮…" value={preferenceData.note} onChange={(e) => setPreferenceData({ ...preferenceData, note: e.target.value })}/></div>
         <div className="text-center mt-6">
-          <button
-            className="bg-[#CB8A90] text-white px-8 py-3 rounded-md shadow-lg hover:bg-pink-500 transition-colors duration-200 text-lg font-bold disabled:opacity-50 flex items-center justify-center mx-auto"
-            onClick={handleAIProcessGenerate}
-            disabled={isGeneratingAI || isSavingPreferences}
-          >
-            <FiZap className="mr-2 text-xl" />
-            {isGeneratingAI ? 'AI 正在生成...' : 'AI 一鍵生成流程'}
+          <button className="bg-[#CB8A90] text-white px-8 py-3 rounded-md shadow-lg hover:bg-pink-500 transition-colors duration-200 text-lg font-bold disabled:opacity-50 flex items-center justify-center mx-auto" onClick={handleAIProcessGenerate} disabled={isGeneratingAI || isSavingPreferences}>
+            {hasSavedProcess ? <FiRefreshCw className="mr-2 text-xl" /> : <FiZap className="mr-2 text-xl" />}
+            {isGeneratingAI ? 'AI 正在生成...' : (hasSavedProcess ? '重新生成並覆蓋' : 'AI 一鍵生成流程')}
           </button>
         </div>
-
         {Array.isArray(aiResponseTableData) && aiResponseTableData.length > 0 && (
           <div className="mt-8 p-6 bg-slate-50 border border-slate-200 rounded-lg shadow-inner overflow-x-auto">
             <h2 className="text-xl font-semibold text-slate-700 mb-4">AI 生成的婚禮流程：</h2>
@@ -351,16 +310,15 @@ function DesignProcessDetail() {
               <tbody className="divide-y divide-slate-200">
                 {aiResponseTableData.map((row, index) => (
                   <tr key={index} className="hover:bg-slate-100">
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-slate-800">{row.時間}</td>
-                    <td className="px-4 py-2 whitespace-normal text-sm text-slate-800">{row.事件}</td>
-                    <td className="px-4 py-2 whitespace-normal text-sm text-slate-800" dangerouslySetInnerHTML={{ __html: row.備註.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }} />
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-slate-800" dangerouslySetInnerHTML={renderMarkdown(row.時間)} />
+                    <td className="px-4 py-2 whitespace-normal text-sm text-slate-800" dangerouslySetInnerHTML={renderMarkdown(row.事件)} />
+                    <td className="px-4 py-2 whitespace-normal text-sm text-slate-800" dangerouslySetInnerHTML={renderMarkdown(row.備註)} />
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-        
         {isGeneratingAI === false && aiResponseTableData.length === 0 && notification && notification.type === 'warning' && (
            <div className="mt-4 text-center text-orange-600 p-3 bg-orange-100 rounded-md">
              <p className="font-semibold">{notification.message}</p>
