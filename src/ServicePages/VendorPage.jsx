@@ -102,7 +102,7 @@ const MOCK_VENDORS = [
 
 
 // 引入廠商詳情彈窗組件
-import VendorDetailModal from './vendor-recommendation/modals/VendorDetailModal';
+// import VendorDetailModal from './vendor-recommendation/modals/VendorDetailModal';
 
 
 export default function VendorRecommendationPage() {
