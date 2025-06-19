@@ -7,7 +7,7 @@ const pool = require('./db.js');
 const serviceRoutes = require('./routes/service');
 const syncRoutes = require('./routes/syncRoutes');
 const statusRoutes = require('./routes/statusRoutes');
-const joinRoutes = require('./routes/joinRoutes');
+const authRoutes = require('./routes/authRoutes.js');
 const reserveRoutes = require('./routes/reserveRoutes');
 const financeRoutes = require('./routes/financeRoutes');
 const projectRoutes = require('./routes/projectRoutes');
@@ -29,7 +29,7 @@ app.use(express.json()); // 解析 JSON 格式的請F求體
 app.use('/customers', serviceRoutes);
 app.use('/sync-sheet-data', syncRoutes);
 app.use('/update-status', statusRoutes);
-app.use('/', joinRoutes);
+app.use('/api', authRoutes);
 app.use('/', reserveRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/design-process', designProcessRoutes);

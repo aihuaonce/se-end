@@ -1,61 +1,73 @@
+// frontend/src/modals/LoginModal.jsx
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-// import "../styles/Login.css"; // 不再需要特定的 Login.css 來處理模態框佈局
+import axios from 'axios'; // 引入 axios
+import { useNavigate } from 'react-router-dom';
 
-export default function LoginModal({ onClose }) { // 接收 onClose prop 用於關閉模態框
-  const [email, setEmail] = useState("");
+const API_URL = 'http://localhost:5713/api';
+
+export default function LoginModal({ onClose, onLoginSuccess, onShowRegister }) {
+  const [username, setUsername] = useState(""); // 注意：現在是 username
   const [password, setPassword] = useState("");
-  const navigate = useNavigate();
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(""); // Clear previous errors
+    setError("");
+    setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5713/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const response = await axios.post(`${API_URL}/login`, {
+        username,
+        password,
       });
 
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        localStorage.setItem("userId", data.user.id);    
-        localStorage.setItem("userEmail", data.user.email);   
+      if (response.data.success) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
         alert("登入成功！");
-        navigate("/"); // 登入成功後導航回首頁，這也會隱式關閉模態框
-      }
-      else {
-        setError(data.message || "登入失敗");
+        onLoginSuccess(); // 通知 App.jsx 登入成功
+        onClose(); // 關閉模態框
+        navigate('/projectall'); // 登入成功後導向專案列表頁面
+      } else {
+        setError(response.data.message || '登入失敗，請稍後再試。');
       }
     } catch (err) {
-      console.error(err);
-      setError("伺服器錯誤，請稍後再試");
+      console.error('Login error:', err);
+      if (err.response) {
+        setError(err.response.data.message || '登入失敗，請檢查使用者名稱和密碼。');
+      } else {
+        setError('網路錯誤或伺服器無回應。');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleRegisterClick = () => {
+    onClose(); // 先關閉登入模態框
+    onShowRegister(); // 然後打開註冊模態框
+  };
+
   return (
-    // 模態框容器：固定定位，佔滿全屏，半透明背景，居中內容
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
-      {/* 模態框內容框 */}
-      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md transform scale-100 transition-transform duration-300">
-        <h2 className="text-2xl font-bold mb-6 text-[#C9C2B2] text-center">會員登入</h2>
-        <form className="space-y-4" onSubmit={handleSubmit}> {/* 使用 Tailwind space-y */}
-          <div className="form-group">
-            <label htmlFor="email" className="block text-gray-700 text-sm font-bold mb-2">電子信箱</label>
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm relative">
+        <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">系統登入</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="username" className="block text-gray-700 text-sm font-bold mb-2">使用者名稱</label>
             <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="請輸入電子郵件"
-              className="shadow appearance-none border rounded-full w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" // Tailwind input styles
+              type="text"
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="請輸入使用者名稱"
+              className="shadow appearance-none border rounded-full w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               required
             />
           </div>
-          <div className="form-group">
+          <div className="mb-6">
             <label htmlFor="password" className="block text-gray-700 text-sm font-bold mb-2">密碼</label>
             <input
               type="password"
@@ -63,30 +75,32 @@ export default function LoginModal({ onClose }) { // 接收 onClose prop 用於�
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="請輸入密碼"
-              className="shadow appearance-none border rounded-full w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" // Tailwind input styles
+              className="shadow appearance-none border rounded-full w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
               required
             />
           </div>
-          <button 
-            type="submit" 
-            className="w-full px-6 py-3 bg-[#C9C2B2] text-white rounded-full font-semibold hover:bg-[#A99A80] transition duration-300 ease-in-out shadow-md" // Tailwind button styles
+          <button
+            type="submit"
+            className="w-full px-6 py-3 bg-blue-500 text-white rounded-full font-semibold hover:bg-blue-700 transition duration-300 ease-in-out shadow-md"
+            disabled={loading}
           >
-            登入
+            {loading ? '登入中...' : '登入'}
           </button>
         </form>
 
         {error && <p className="text-red-500 text-sm text-center mt-4">{error}</p>}
 
         <p className="text-center mt-4">
-          尚未註冊？<span 
-            className="text-blue-500 cursor-pointer hover:underline" 
-            onClick={() => navigate("/register")} // 導航到註冊頁面，這也會隱式關閉登入模態框
+          還沒有帳號？
+          <button
+            type="button"
+            className="text-blue-500 cursor-pointer hover:underline ml-1"
+            onClick={handleRegisterClick}
           >
-            點我註冊
-          </span>
+            立即註冊
+          </button>
         </p>
-        
-        {/* 關閉按鈕 */}
+
         <div className="flex justify-end mt-6">
           <button
             type="button"

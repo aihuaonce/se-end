@@ -536,48 +536,39 @@ router.post('/new', async (req, res) => {
   }
 });
 
-// GET /tasks - 獲取任務列表（含月份篩選）
-// 完整路徑將是 /api/projects/tasks
+// GET /:projectId/tasks - 獲取特定專案的任務列表
 router.get('/:projectId/tasks', async (req, res) => {
   const { projectId } = req.params;
+  if (isNaN(parseInt(projectId))) {
+    return res.status(400).json({ success: false, message: '無效的專案 ID 格式' });
+  }
   try {
     const [rows] = await pool.query(
       `SELECT
-         task_id,
-         project_id,
-         task_name,
-         task_content,
-         responsible_staff,
-         expected_start,
-         expected_end,
-         actual_start,
-         actual_end,
-         task_status,
-         priority,
-         remark,
-         created_at,
-         updated_at
+         task_id, project_id, task_name, task_content, responsible_staff,
+         expected_start, expected_end, actual_start, actual_end,
+         task_status, priority, remark, created_at, updated_at
        FROM project_tasks
        WHERE project_id = ?
-       ORDER BY FIELD(task_status, '延遲', '進行中', '尚未開始', '已完成'), expected_end ASC, task_id ASC`, // 排序：延遲 > 進行中 > 尚未開始 > 已完成, 再按預計結束日和ID
+       ORDER BY FIELD(task_status, '延遲', '進行中', '尚未開始', '已完成', '未定義'), expected_end ASC, task_id ASC`,
       [projectId]
     );
-
-    console.log(`[Backend GET /projects/${projectId}/tasks] 成功抓取 ${rows.length} 筆任務資料`);
+    // console.log(`[Backend GET /projects/${projectId}/tasks] 成功抓取 ${rows.length} 筆任務資料`);
     res.json({ success: true, data: rows });
   } catch (err) {
     sendError(res, `GET /projects/${projectId}/tasks`, err, "無法獲取專案任務資料");
   }
 });
 
-// 4. 新增一個任務 (用於預設任務首次完成時)
+// POST /tasks - 新增一個任務 (供前端創建新的樣板任務或自定義任務)
+// 注意：這個路由的路徑是 /api/projects/tasks (因為 projectRoutes 掛載在 /api/projects 下)
 router.post('/tasks', async (req, res) => {
   const {
     project_id,
     task_name,
-    task_description,
-    scheduled_start,
-    scheduled_end,
+    task_content, // 從前端接收 task_content
+    expected_start,
+    expected_end,
     actual_start,
     actual_end,
     task_status,
@@ -588,124 +579,131 @@ router.post('/tasks', async (req, res) => {
   if (!project_id || !task_name || !task_status) {
     return res.status(400).json({ success: false, message: "專案ID、任務名稱和任務狀態為必填項。" });
   }
+  if (isNaN(parseInt(project_id))) {
+    return res.status(400).json({ success: false, message: "無效的專案ID格式。" });
+  }
 
   try {
+    // 驗證 project_id 是否存在
     const [projectCheck] = await pool.query('SELECT project_id FROM wedding_projects WHERE project_id = ?', [project_id]);
     if (projectCheck.length === 0) {
-      return res.status(404).json({ success: false, message: "找不到指定的專案ID。" });
+      return res.status(404).json({ success: false, message: "找不到指定的專案ID，無法新增任務。" });
     }
 
     const [result] = await pool.query(
       `INSERT INTO project_tasks (
-         project_id, task_name, task_description, scheduled_start, scheduled_end,
-         actual_start, actual_end, task_status, priority, remark
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         project_id, task_name, task_content, expected_start, expected_end,
+         actual_start, actual_end, task_status, priority, remark, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         project_id,
         task_name,
-        task_description || null,
-        scheduled_start ? moment(scheduled_start).format('YYYY-MM-DD HH:mm:ss') : null,
-        scheduled_end ? moment(scheduled_end).format('YYYY-MM-DD HH:mm:ss') : null,
+        task_content || null,
+        expected_start ? moment(expected_start).format('YYYY-MM-DD HH:mm:ss') : null,
+        expected_end ? moment(expected_end).format('YYYY-MM-DD HH:mm:ss') : null,
         actual_start ? moment(actual_start).format('YYYY-MM-DD HH:mm:ss') : null,
         actual_end ? moment(actual_end).format('YYYY-MM-DD HH:mm:ss') : null,
         task_status,
-        priority || '中',
+        priority || '中', // 預設優先級
         remark || null
       ]
     );
-    console.log(`[Backend POST /tasks] 新增任務成功，ID: ${result.insertId}`);
+    const newTaskId = result.insertId;
+    console.log(`[Backend POST /tasks] 新增任務成功，ID: ${newTaskId} for Project ID: ${project_id}`);
+
+    // 返回新創建的任務信息
+    const [newTask] = await pool.query('SELECT * FROM project_tasks WHERE task_id = ?', [newTaskId]);
+
     res.status(201).json({
       success: true,
       message: "任務新增成功",
-      task_id: result.insertId
+      data: newTask[0] // 返回完整的任務對象
     });
   } catch (err) {
-    sendError(res, `POST /tasks`, err, "無法新增任務");
-  }
-});
-
-
-// 5. 更新專案主要資訊 (例如 couple_remark)
-router.put('/projects/:id', async (req, res) => {
-  const { id } = req.params;
-  const { couple_remark } = req.body;
-
-  try {
-    // 首先更新 wedding_projects 表 (project_status 可以由其他邏輯控制，這裡只處理 couple_remark)
-    const [projectUpdateResult] = await pool.query(
-      `UPDATE wedding_projects SET project_status = ? WHERE project_id = ?`,
-      ['進行中', id] // 例如，一旦編輯就設為進行中
-    );
-
-    // 然後更新 project_couple_details 表
-    const [coupleDetailsUpdateResult] = await pool.query(
-      `UPDATE project_couple_details SET remark = ? WHERE project_id = ?`,
-      [couple_remark || null, id]
-    );
-
-    if (projectUpdateResult.affectedRows === 0 && coupleDetailsUpdateResult.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "找不到指定的專案或沒有內容被改變。" });
+    if (err.code === 'ER_NO_REFERENCED_ROW_2') {
+      sendError(res, `POST /tasks`, err, "參照的專案ID不存在。", 400);
+    } else {
+      sendError(res, `POST /tasks`, err, "無法新增任務");
     }
-
-    console.log(`[Backend PUT /projects/${id}] 專案資訊更新成功`);
-    res.json({ success: true, message: "專案資訊更新成功" });
-  } catch (err) {
-    sendError(res, `PUT /projects/${id}`, err, "無法更新專案資訊");
   }
 });
 
 
-// 6. 更新特定任務的狀態（通用更新任務屬性）
+// PUT /tasks/:taskId - 更新特定任務的屬性
+// 注意：這個路由的路徑是 /api/projects/tasks/:taskId
 router.put('/tasks/:taskId', async (req, res) => {
   const { taskId } = req.params;
-  const {
-    task_name,
-    task_description,
-    scheduled_start,
-    scheduled_end,
-    actual_start,
-    actual_end,
-    task_status,
-    priority,
-    remark
-  } = req.body;
+  const updates = req.body; // 前端會發送一個包含待更新字段的對象
+
+  if (isNaN(parseInt(taskId))) {
+    return res.status(400).json({ success: false, message: '無效的任務 ID 格式' });
+  }
+
+  // 移除 project_id 和 task_name，通常不允許透過此端點直接修改它們
+  // 如果需要修改 task_name，可能需要特殊處理或單獨的端點
+  delete updates.project_id;
+  // delete updates.task_name; // 如果允許修改任務名，則保留
+
+  const allowedFields = [
+    'task_name', 'task_content', 'responsible_staff', 'expected_start',
+    'expected_end', 'actual_start', 'actual_end', 'task_status',
+    'priority', 'remark'
+  ];
+
+  const updateFields = [];
+  const updateValues = [];
+
+  for (const field of allowedFields) {
+    if (updates.hasOwnProperty(field)) {
+      updateFields.push(`${field} = ?`);
+      let value = updates[field];
+      // 日期格式化
+      if (['expected_start', 'expected_end', 'actual_start', 'actual_end'].includes(field)) {
+        value = value ? moment(value).format('YYYY-MM-DD HH:mm:ss') : null;
+      }
+      updateValues.push(value);
+    }
+  }
+
+  if (updateFields.length === 0) {
+    return res.status(400).json({ success: false, message: "沒有提供要更新的欄位。" });
+  }
+
+  // 自動添加 updated_at
+  updateFields.push('updated_at = NOW()');
 
   try {
-    const updateFields = [];
-    const updateValues = [];
-
-    if (task_name !== undefined) { updateFields.push('task_name = ?'); updateValues.push(task_name); }
-    if (task_description !== undefined) { updateFields.push('task_description = ?'); updateValues.push(task_description); }
-    if (scheduled_start !== undefined) { updateFields.push('scheduled_start = ?'); updateValues.push(scheduled_start ? moment(scheduled_start).format('YYYY-MM-DD HH:mm:ss') : null); }
-    if (scheduled_end !== undefined) { updateFields.push('scheduled_end = ?'); updateValues.push(scheduled_end ? moment(scheduled_end).format('YYYY-MM-DD HH:mm:ss') : null); }
-    if (actual_start !== undefined) { updateFields.push('actual_start = ?'); updateValues.push(actual_start ? moment(actual_start).format('YYYY-MM-DD HH:mm:ss') : null); }
-    if (actual_end !== undefined) { updateFields.push('actual_end = ?'); updateValues.push(actual_end ? moment(actual_end).format('YYYY-MM-DD HH:mm:ss') : null); }
-    if (task_status !== undefined) { updateFields.push('task_status = ?'); updateValues.push(task_status); }
-    if (priority !== undefined) { updateFields.push('priority = ?'); updateValues.push(priority); }
-    if (remark !== undefined) { updateFields.push('remark = ?'); updateValues.push(remark); }
-
-    if (updateFields.length === 0) {
-      return res.status(400).json({ success: false, message: "沒有提供要更新的欄位。" });
-    }
-
     const query = `UPDATE project_tasks SET ${updateFields.join(', ')} WHERE task_id = ?`;
     const [result] = await pool.query(query, [...updateValues, taskId]);
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "找不到指定的任務或沒有內容被改變。" });
+      // 可能是 taskId 不存在，或者更新的值與現有值相同
+      const [checkTask] = await pool.query('SELECT task_id FROM project_tasks WHERE task_id = ?', [taskId]);
+      if (checkTask.length === 0) {
+        return res.status(404).json({ success: false, message: "找不到指定的任務。" });
+      }
+      // 如果任務存在但 affectedRows 是 0，表示數據未變更
+      console.log(`[Backend PUT /tasks/${taskId}] 任務資料未變更。`);
+      return res.json({ success: true, message: "任務資料未變更，無需儲存。" });
     }
 
     console.log(`[Backend PUT /tasks/${taskId}] 任務更新成功`);
-    res.json({ success: true, message: "任務更新成功" });
+    // 返回更新後的任務信息
+    const [updatedTask] = await pool.query('SELECT * FROM project_tasks WHERE task_id = ?', [taskId]);
+    res.json({ success: true, message: "任務更新成功", data: updatedTask[0] });
+
   } catch (err) {
     sendError(res, `PUT /tasks/${taskId}`, err, "無法更新任務");
   }
 });
 
 
-// 7. 刪除特定任務
+// DELETE /tasks/:taskId - 刪除特定任務 (如果需要)
 router.delete('/tasks/:taskId', async (req, res) => {
   const { taskId } = req.params;
+  if (isNaN(parseInt(taskId))) {
+    return res.status(400).json({ success: false, message: '無效的任務 ID 格式' });
+  }
   try {
     const [result] = await pool.query('DELETE FROM project_tasks WHERE task_id = ?', [taskId]);
     if (result.affectedRows === 0) {

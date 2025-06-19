@@ -22,7 +22,7 @@ export default function VendorPage() {
   const [availableCategories, setAvailableCategories] = useState([]);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(7);
+  const [itemsPerPage] = useState(6);
 
   // 移除 selectedDate 相關狀態
   // const [selectedDate, setSelectedDate] = useState(null);
