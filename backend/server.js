@@ -1,4 +1,3 @@
-// backend/server.js
 const express = require("express");
 const cors = require("cors");
 require('dotenv').config();
@@ -11,11 +10,10 @@ const statusRoutes = require('./routes/statusRoutes');
 const joinRoutes = require('./routes/joinRoutes');
 const reserveRoutes = require('./routes/reserveRoutes');
 const financeRoutes = require('./routes/financeRoutes');
-
 const projectRoutes = require('./routes/projectRoutes');
 
-const projectAll = require('./routes/projectAll');
-const projectdetail = require('./routes/projectdetail');
+
+
 
 const app = express();
 
@@ -29,10 +27,9 @@ app.use('/update-status', statusRoutes);
 app.use('/', joinRoutes);
 app.use('/', reserveRoutes);
 app.use('/api/finance', financeRoutes);
+app.use('/api/projects', projectRoutes);
 
-app.use('/api/project', projectRoutes);
-app.use('/api/projectall', projectAll);
-app.use('/api/projectdetail', projectdetail);
+
 
 // 啟動伺服器
 const PORT = process.env.PORT || 5713; // 從 .env 讀取埠號，如果沒有則預設 5713

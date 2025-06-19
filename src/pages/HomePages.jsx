@@ -7,7 +7,7 @@ export default function HomePages() {
   const navigate = useNavigate(); // 初始化 useNavigate
 
   useEffect(() => {
-    fetch("http://localhost:5713/api/project")
+    fetch("http://localhost:5713/api/projects/plan")
       .then((res) => {
         if (!res.ok) {
           throw new Error("資料載入失敗");

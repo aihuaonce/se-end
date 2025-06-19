@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 
 // 取得所有任務（含月份篩選）
-router.get('/api/projectdetail', async (req, res) => {
+router.get('/api/project', async (req, res) => {
   try {
     const { month } = req.query; // e.g., "2025-06"
 
@@ -24,7 +24,7 @@ router.get('/api/projectdetail', async (req, res) => {
 });
 
 // 取得專案詳情列表
-router.get('/api/projectdetail', async (req, res) => {
+router.get('/api/project-all', async (req, res) => {
   try {
     const [results] = await pool.query('SELECT * FROM project_details');
     res.json(results);
@@ -33,7 +33,7 @@ router.get('/api/projectdetail', async (req, res) => {
     res.status(500).json({ message: '伺服器錯誤' });
   }
 });
-router.post('/api/projectdetail', async (req, res) => {
+router.post('/api/project-details', async (req, res) => {
     const {
       groom_name,
       bride_name,
@@ -72,7 +72,7 @@ router.post('/api/projectdetail', async (req, res) => {
       res.status(500).json({ message: '伺服器錯誤' });
     }
   });
-router.get('/api/projectdetail/:id', async (req, res) => {
+router.get('/api/project-details/:id', async (req, res) => {
   const id = req.params.id;
   try {
     const [rows] = await pool.query('SELECT * FROM project_details WHERE project_id = ?', [id]);
@@ -85,22 +85,5 @@ router.get('/api/projectdetail/:id', async (req, res) => {
     res.status(500).json({ message: '伺服器錯誤' });
   }
 });
-
-router.put('/api/projectdetail/:id', async (req, res) => {
-    const projectId = req.params.id;
-    const updates = req.body;
-  
-    try {
-      const fields = Object.keys(updates).map(key => `${key} = ?`).join(', ');
-      const values = Object.values(updates);
-  
-      await pool.query(`UPDATE project_details SET ${fields} WHERE project_id = ?`, [...values, projectId]);
-      res.json({ message: '更新成功' });
-    } catch (err) {
-      console.error('❌ 更新資料失敗:', err);
-      res.status(500).json({ message: '伺服器錯誤' });
-    }
-  });
-
 
 module.exports = router;

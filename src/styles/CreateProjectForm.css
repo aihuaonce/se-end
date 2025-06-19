@@ -1,0 +1,83 @@
+/* src/styles/CreateProjectForm.css */
+.create-project-container {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 30px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  font-family: 'Arial', sans-serif;
+}
+
+.create-project-container h2 {
+  text-align: center;
+  color: #cb8a90;
+  margin-bottom: 30px;
+  font-size: 2em;
+}
+
+.project-form .form-group {
+  margin-bottom: 20px;
+}
+
+.project-form label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #555;
+}
+
+.project-form .form-control {
+  width: calc(100% - 20px); /* 考慮 padding */
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1em;
+  box-sizing: border-box; /* 包含 padding 在寬度內 */
+}
+
+.project-form .form-control.readonly {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #e74c3c;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.submit-button, .back-button {
+  width: 48%; /* 讓兩個按鈕並排 */
+  padding: 12px 20px;
+  border: none;
+  border-radius: 5px;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 20px;
+}
+
+.submit-button {
+  background-color: #cb8a90;
+  color: white;
+  margin-right: 4%; /* 留點空間 */
+}
+
+.submit-button:hover:not(:disabled) {
+  background-color: #b3777d;
+}
+
+.submit-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.back-button {
+  background-color: #6c757d;
+  color: white;
+}
+
+.back-button:hover {
+  background-color: #5a6268;
+}

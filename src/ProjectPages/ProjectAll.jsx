@@ -8,7 +8,7 @@ const ProjectAll = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('http://localhost:5713/api/projectall'); // 注意: 對應 server 的路由改為 /api/projects
+        const res = await fetch('http://localhost:5713/api/projects'); // 注意: 對應 server 的路由改為 /api/projects
         const data = await res.json();
         setProjectall(data);
       } catch (error) {
