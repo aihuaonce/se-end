@@ -65,9 +65,7 @@ const Header = () => {
           <User style={styles.icon} /> 註冊
         </Link>
 
-        <Link to="/cart" style={styles.navButton}>
-          <ShoppingCart style={styles.icon} /> 購物車
-        </Link>
+
         <Link to="/persondata" style={styles.navButton}>
           <User style={styles.icon} /> 個人資料
         </Link>

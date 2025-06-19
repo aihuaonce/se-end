@@ -42,7 +42,7 @@ export default function LoginPage() {
 
       <main className="main-content">
         <section className="login-section">
-          <h2 className="hero-title">會員登入</h2>
+          <h2 className="hero-title">管理員登入</h2>
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="email">電子信箱</label>

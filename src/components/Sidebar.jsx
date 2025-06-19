@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { LayoutDashboard, Users, Bus, DollarSign, Calendar, Phone, MessageSquare, Clock, Send, Lightbulb, FileText } from "lucide-react"; // 導入更多合適的圖標
+import { LayoutDashboard, Users, Bus, DollarSign, Calendar, Phone, MessageSquare, Clock, Send, Lightbulb, FileText, Tag } from "lucide-react"; // 導入更多合適的圖標
 
 export default function Sidebar() {
   return (
@@ -24,6 +24,12 @@ export default function Sidebar() {
             <Link to="/customer" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
               <Phone size={18} />
               <span>聯絡</span>
+            </Link>
+          </li>
+          <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">
+            <Link to="/level" className="flex items-center gap-2 w-full" style={{ color: '#CB8A90' }}>
+              <Tag size={18} />
+              <span>分級</span>
             </Link>
           </li>
           <li className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 cursor-pointer">

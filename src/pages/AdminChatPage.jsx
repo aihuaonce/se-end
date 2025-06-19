@@ -6,7 +6,7 @@ function AdminChatPage() {
     const [activeCustomerId, setActiveCustomerId] = useState(null);
     const [replyText, setReplyText] = useState('');
     const [loading, setLoading] = useState(true);
-    const [replying, setReplying] = useState(false);  // 新增回覆中狀態
+    const [replying, setReplying] = useState(false);
 
     useEffect(() => {
         fetchMessages();
@@ -44,7 +44,7 @@ function AdminChatPage() {
                 回覆內容: replyText,
             });
             setReplyText('');
-            await fetchMessages();  // **await 等待資料刷新完成**
+            await fetchMessages();
         } catch (error) {
             console.error('回覆失敗:', error);
             alert('回覆失敗，請稍後再試');
@@ -53,7 +53,6 @@ function AdminChatPage() {
         }
     };
 
-    // group by 顧客id
     const grouped = messages.reduce((acc, msg) => {
         const id = msg.顧客id.toString();
         if (!acc[id]) acc[id] = [];
@@ -61,81 +60,165 @@ function AdminChatPage() {
         return acc;
     }, {});
 
-    // 對每組訊息排序：早 → 晚
     Object.keys(grouped).forEach(id => {
         grouped[id].sort((a, b) => new Date(a.溝通時間) - new Date(b.溝通時間));
     });
 
     return (
-        <div className="p-4">
+        <div className="p-6 font-sans">
+            <style>{`
+                .chat-customer-list {
+                    background-color: #fffafa;
+                    border: 1px solid #e5a8b5;
+                    border-radius: 10px;
+                    padding: 10px;
+                    height: 32rem;
+                    overflow-y: auto;
+                }
 
-            <div className="flex">
-                {/* 顧客列表 */}
-                <div className="w-1/3 border-r pr-4">
-                    <h3 className="font-bold mb-2">顧客列表</h3>
+                .chat-customer-item {
+                    padding: 8px 10px;
+                    border-radius: 6px;
+                    margin-bottom: 8px;
+                    cursor: pointer;
+                    transition: background-color 0.2s;
+                }
+
+                .chat-customer-item:hover {
+                    background-color: #f3d9db;
+                }
+
+                .chat-active {
+                    background-color: #cb8a90;
+                    color: white;
+                }
+
+                .chat-window {
+                    border: 1px solid #e5a8b5;
+                    border-radius: 10px;
+                    padding: 10px;
+                    height: 32rem;
+                    overflow-y: auto;
+                    background-color: #fffafa;
+                }
+
+                .chat-bubble {
+                    display: inline-block;
+                    max-width: 75%;
+                    padding: 8px 12px;
+                    border-radius: 10px;
+                    position: relative;
+                }
+
+                .chat-user {
+                    background-color: #f9dcdc;
+                    color: #4b1e1e;
+                }
+
+                .chat-admin {
+                    background-color: #cb8a90;
+                    color: white;
+                }
+
+                .chat-time {
+                    font-size: 12px;
+                    color: #aaa;
+                    margin-top: 2px;
+                }
+
+                .reply-box {
+                    border: 1px solid #cb8a90;
+                    border-radius: 8px;
+                    padding: 8px;
+                    width: 100%;
+                }
+
+                .reply-button {
+                    background-color: #cb8a90;
+                    color: white;
+                    padding: 8px 16px;
+                    border: none;
+                    border-radius: 6px;
+                    margin-left: 10px;
+                    cursor: pointer;
+                    transition: background-color 0.2s;
+                }
+
+                .reply-button:hover {
+                    background-color: #ef4c92;
+                }
+
+                .unreplied-tag {
+                    font-size: 10px;
+                    background-color: #dc2626;
+                    color: white;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    margin-left: 6px;
+                }
+            `}</style>
+
+            <h1 className="text-2xl font-bold mb-4 text-[#cb8a90]">客服對話</h1>
+
+            <div className="flex gap-6">
+                {/* 左側顧客列表 */}
+                <div className="w-1/3 chat-customer-list">
+                    <h2 className="font-semibold text-[#cb8a90] mb-3">顧客列表</h2>
                     {Object.keys(grouped).map(id => {
                         const userMsgs = grouped[id].filter(m => m.發送者 === 'user');
                         const hasUnreplied = userMsgs.some(m => m.是否回覆 === 0);
                         return (
                             <div
                                 key={id}
-                                className={`cursor-pointer mb-2 p-2 rounded ${hasUnreplied ? 'bg-yellow-100' : 'bg-gray-100'}`}
+                                className={`chat-customer-item ${activeCustomerId === id ? 'chat-active' : ''}`}
                                 onClick={() => setActiveCustomerId(id)}
                             >
-                                顧客 #{id} {hasUnreplied && '（未回覆）'}
+                                顧客 #{id} {hasUnreplied && <span className="unreplied-tag">未回覆</span>}
                             </div>
                         );
                     })}
                 </div>
 
-                {/* 對話區塊 */}
-                <div className="w-2/3 pl-4">
+                {/* 右側對話區域 */}
+                <div className="w-2/3">
                     {activeCustomerId ? (
                         <>
-                            <h3 className="font-bold mb-2">與顧客對話</h3>
-                            <div className="border h-96 overflow-y-scroll p-2 mb-4 bg-white">
+                            <h2 className="font-semibold text-[#cb8a90] mb-3">與顧客 #{activeCustomerId} 的對話</h2>
+                            <div className="chat-window mb-4">
                                 {loading ? (
                                     <p className="text-gray-400 text-center">載入中...</p>
                                 ) : Array.isArray(grouped[activeCustomerId]) && grouped[activeCustomerId].length > 0 ? (
                                     grouped[activeCustomerId].map(msg => (
-                                        <div
-                                            key={msg.溝通id}
-                                            className={`mb-2 ${msg.發送者 === 'admin' ? 'text-right' : 'text-left'}`}
-                                        >
-                                            <div
-                                                className={`inline-block p-2 rounded relative ${msg.發送者 === 'admin' ? 'bg-blue-200' : 'bg-gray-200'}`}
-                                            >
+                                        <div key={msg.溝通id} className={`mb-3 ${msg.發送者 === 'admin' ? 'text-right' : 'text-left'}`}>
+                                            <div className={`chat-bubble ${msg.發送者 === 'admin' ? 'chat-admin' : 'chat-user'}`}>
                                                 {msg.溝通內容}
                                                 {msg.發送者 === 'user' && msg.是否回覆 === 0 && (
-                                                    <span className="text-xs text-white bg-red-500 px-2 py-0.5 rounded ml-2">
-                                                        未回覆
-                                                    </span>
+                                                    <span className="unreplied-tag">未回覆</span>
                                                 )}
                                             </div>
-                                            <div className="text-xs text-gray-400 mt-1">
+                                            <div className="chat-time">
                                                 {msg.溝通時間 ? new Date(msg.溝通時間).toLocaleString() : '無時間'}
                                             </div>
                                         </div>
                                     ))
-
                                 ) : (
                                     <p className="text-gray-400 text-center">目前沒有訊息</p>
                                 )}
                             </div>
-                            {/* 回覆輸入區 */}
-                            <div className="flex gap-2">
+
+                            <div className="flex">
                                 <input
                                     type="text"
                                     value={replyText}
                                     onChange={e => setReplyText(e.target.value)}
-                                    className="flex-1 border rounded p-2"
+                                    className="reply-box"
                                     placeholder="輸入回覆內容..."
-                                    disabled={replying} // 回覆時鎖住輸入
+                                    disabled={replying}
                                 />
                                 <button
                                     onClick={handleReply}
-                                    className="bg-blue-500 text-white px-4 py-2 rounded"
-                                    disabled={replying} // 回覆時鎖住按鈕
+                                    className="reply-button"
+                                    disabled={replying}
                                 >
                                     {replying ? '回覆中...' : '回覆'}
                                 </button>

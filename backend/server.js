@@ -12,6 +12,7 @@ const joinRoutes = require('./routes/joinRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const customerRoutes = require('./routes/customer');
+const levelRoutes = require('./routes/level');
 
 const app = express();
 
@@ -27,6 +28,8 @@ app.use('/', joinRoutes);
 app.use('/api', bookingRoutes); 
 app.use('/api/chat', chatRoutes);
 app.use('/api', customerRoutes);
+app.use('/api', levelRoutes);
+
 
 // 啟動伺服器
 const PORT = process.env.PORT || 5713;

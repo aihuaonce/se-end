@@ -12,6 +12,7 @@ import RegisterPage from './pages/RegisterPage';
 import PersonDataPage from "./pages/PersonDataPage";
 import ReservationsPage from "./pages/ReservationsPage";
 import AdminChatPage from "./pages/AdminChatPage";
+import LevelPage from "./pages/LevelPage";
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Sidebar from './components/Sidebar';
@@ -36,6 +37,9 @@ function App() {
               <Route path="/persondata" element={<PersonDataPage />} />
               <Route path="/reservations" element={<ReservationsPage />} />
               <Route path="/admin/chat" element={<AdminChatPage />} />
+              <Route path="/level" element={<LevelPage />} />
+
+
             </Routes>
           </main>
         </div>

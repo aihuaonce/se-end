@@ -73,6 +73,35 @@ function AdminReservationsPage() {
                     margin-bottom: 20px;
                     color: #cb8a90;
                 }
+                table {
+                    border-collapse: collapse;
+                    width: 100%;
+                    font-size: 14px;
+                    color: #333;
+                }
+                
+                /* 表頭樣式 */
+                thead {
+                    background-color: #cb8a90; /* 柔和玫瑰粉 */
+                    color: white;              /* 白色字體更清楚 */
+                    font-weight: bold;
+                }
+                
+                
+                /* 表頭格線與字體 */
+                thead th {
+                    border: 1px solid #e5a8b5;
+                    padding: 10px 8px;
+                    text-align: center;
+                }
+                
+                /* 表格內容列 */
+                tbody td {
+                    border: 1px solid #ddd;
+                    padding: 10px 8px;
+                    text-align: center;
+                }
+                
             `}</style>
 
             <h1 className="page-container">預約查詢</h1>
@@ -101,7 +130,7 @@ function AdminReservationsPage() {
             </div>
 
             <table className="w-full border mt-4 text-sm">
-                <thead className="bg-gray-100">
+                <thead>
                     <tr>
                         <th className="border px-2 py-1">預約ID</th>
                         <th className="border px-2 py-1">顧客姓名</th>
