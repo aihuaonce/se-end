@@ -132,97 +132,6 @@ function ServicePageContent() {
         }
     }, [notification]);
 
-    // 表單驗證函式 (新增客戶)
-    const validateForm = () => {
-        const errors = {};
-
-        // 驗證新郎新娘姓名
-        if (!formData.groom_name || !formData.groom_name.trim()) errors.groom_name = "請填寫新郎姓名";
-        if (!formData.bride_name || !formData.bride_name.trim()) errors.bride_name = "請填寫新娘姓名";
-
-        // 驗證 Email
-        if (!formData.email || !formData.email.trim()) {
-            errors.email = "請填寫電子郵件地址";
-        } else if (!validator.isEmail(formData.email)) {
-            errors.email = "請輸入有效的電子郵件地址";
-        }
-
-        // 驗證電話
-        if (!formData.phone || !formData.phone.trim()) {
-            errors.phone = "請填寫聯絡電話";
-        } else if (!validator.isMobilePhone(formData.phone, 'any', { strictMode: false })) {
-            errors.phone = "請輸入有效的聯絡電話";
-        }
-
-        // 婚禮日期非必填，但如果填了，格式要正確 (datetime-local 格式)
-        if (formData.wedding_date) {
-            const dateObj = new Date(formData.wedding_date);
-            if (isNaN(dateObj.getTime())) { // 檢查是否是有效的日期
-                errors.wedding_date = "請選擇有效的婚禮日期和時間";
-            }
-        }
-
-        // Google 試算表連結必填且格式正確
-        if (!formData.form_link || !formData.form_link.trim()) {
-            errors.form_link = "請填寫 Google 試算表連結";
-        } else if (!validator.isURL(formData.form_link, { require_protocol: true })) {
-            errors.form_link = "請輸入有效的連結 (包含 http:// 或 https://)";
-        }
-
-        setFormErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
-
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-        // 當使用者修改欄位時，清除該欄位的錯誤訊息
-        if (formErrors[e.target.name]) {
-            setFormErrors({ ...formErrors, [e.target.name]: "" });
-        }
-        // 清除提交錯誤訊息
-        if (formErrors.submit) {
-            setFormErrors({ ...formErrors, submit: "" });
-        }
-    };
-
-    // 處理新增客戶表單提交
-    const handleSubmit = async () => {
-        if (!validateForm()) {
-            return; // 驗證失敗，停止提交
-        }
-        setIsSubmitting(true);
-        setFormErrors({});
-
-        try {
-            const res = await fetch(`${API_BASE_URL}/customers`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                const errorMessage = data.message || `新增失敗，請稍後再試 (${res.status})`;
-                console.error("新增客戶 API 錯誤:", errorMessage);
-                throw new Error(errorMessage);
-            }
-
-            fetchCustomers(); // 重新載入列表數據
-            setShowForm(false); // 關閉表單 Modal
-            setFormData({ // 重設表單數據
-                groom_name: "", bride_name: "", email: "", phone: "",
-                wedding_date: "", wedding_location: "", form_link: "",
-            });
-            setFormErrors({}); // 清空表單錯誤
-            setNotification({ message: "客戶新增成功！", type: "success" });
-        } catch (err) {
-            console.error("新增錯誤：", err);
-            setFormErrors({ ...formErrors, submit: err.message || "新增失敗，請稍後再試" });
-            setNotification({ message: err.message || "新增失敗，請稍後再試", type: "error" });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
     // --- 拖曳開始處理 ---
     const onDragStart = (start) => {
         console.log("Drag started for:", start.draggableId);
@@ -422,9 +331,6 @@ function ServicePageContent() {
                                 <h1 className="text-xl md:text-3xl font-semibold text-slate-700 mx-auto text-center">
                                     自動化賀卡寄送 {searchQuery ? ` (搜尋: "${searchQuery}")` : ` (${filterStatus === 'all' ? '全部' : filterStatus === 'open' ? '未結案' : '已結案'})`}
                                 </h1>
-                                <button onClick={() => setShowForm(true)} className="bg-sky-700 text-white px-4 py-2 rounded-md shadow hover:bg-sky-800 transition-colors duration-200 text-sm md:text-base" disabled={isSubmitting}>
-                                    新增客戶
-                                </button>
                             </div>
 
                             {/* 篩選選單 */}
@@ -475,79 +381,6 @@ function ServicePageContent() {
                                     </button>
                                 )}
                             </div>
-
-                            {/* 新增客戶表單 Modal */}
-                            {showForm && (
-                                <div className="fixed inset-0 bg-black bg-opacity-30 flex justify-center items-center z-50 p-4">
-                                    <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md transform transition-all duration-300 scale-100">
-                                        <div className="flex justify-between items-center mb-4 border-b pb-2 border-slate-200">
-                                            <h2 className="text-xl font-bold text-slate-700">新增客戶資訊</h2>
-                                            <button
-                                                onClick={() => {
-                                                    setShowForm(false);
-                                                    setFormErrors({});
-                                                    setFormData({ groom_name: "", bride_name: "", email: "", phone: "", wedding_date: "", wedding_location: "", form_link: "" });
-                                                }}
-                                                className="text-slate-500 hover:text-slate-700 text-2xl"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                        <div className="grid grid-cols-1 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">新郎姓名</label>
-                                                <input type="text" name="groom_name" value={formData.groom_name} onChange={handleChange} placeholder="新郎姓名" className={`border ${formErrors.groom_name ? 'border-red-500' : 'border-slate-300'} rounded-md p-2 w-full focus:outline-none focus:ring-2 focus:ring-sky-500`} />
-                                                {formErrors.groom_name && <p className="text-red-500 text-sm mt-1">{formErrors.groom_name}</p>}
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">新娘姓名</label>
-                                                <input type="text" name="bride_name" value={formData.bride_name} onChange={handleChange} placeholder="新娘姓名" className={`border ${formErrors.bride_name ? 'border-red-500' : 'border-slate-300'} rounded-md p-2 w-full focus:outline-none focus:ring-2 focus:ring-sky-500`} />
-                                                {formErrors.bride_name && <p className="text-red-500 text-sm mt-1">{formErrors.bride_name}</p>}
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">聯絡信箱</label>
-                                                <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="聯絡信箱" className={`border ${formErrors.email ? 'border-red-500' : 'border-slate-300'} rounded-md p-2 w-full focus:outline-none focus:ring-2 focus:ring-sky-500`} />
-                                                {formErrors.email && <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>}
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">聯絡電話</label>
-                                                <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="聯絡電話" className={`border ${formErrors.phone ? 'border-red-500' : 'border-slate-300'} rounded-md p-2 w-full focus:outline-none focus:ring-2 focus:ring-sky-500`} />
-                                                {formErrors.phone && <p className="text-red-500 text-sm mt-1">{formErrors.phone}</p>}
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">婚禮日期時間</label>
-                                                <input type="datetime-local" name="wedding_date" value={formData.wedding_date} onChange={handleChange} className={`border ${formErrors.wedding_date ? 'border-red-500' : 'border-slate-300'} rounded-md p-2 w-full focus:outline-none focus:ring-2 focus:ring-sky-500`} />
-                                                {formErrors.wedding_date && <p className="text-red-500 text-sm mt-1">{formErrors.wedding_date}</p>}
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">婚禮地點</label>
-                                                <input type="text" name="wedding_location" value={formData.wedding_location} onChange={handleChange} placeholder="婚禮地點" className={`border ${formErrors.wedding_location ? 'border-red-500' : 'border-slate-300'} rounded-md p-2 w-full focus:outline-none focus:ring-2 focus:ring-sky-500`} />
-                                                {formErrors.wedding_location && <p className="text-red-500 text-sm mt-1">{formErrors.wedding_location}</p>}
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Google 試算表連結</label>
-                                                <input type="text" name="form_link" value={formData.form_link} onChange={handleChange} placeholder="google 試算表連結" className={`border ${formErrors.form_link ? 'border-red-500' : 'border-slate-300'} rounded-md p-2 w-full focus:outline-none focus:ring-2 focus:ring-sky-500`} />
-                                                {formErrors.form_link && <p className="text-red-500 text-sm mt-1">{formErrors.form_link}</p>}
-                                            </div>
-                                        </div>
-                                        {formErrors.submit && <p className="text-red-600 text-sm mt-2 text-center">{formErrors.submit}</p>}
-                                        <div className="flex gap-4 mt-4 justify-end">
-                                            <button onClick={handleSubmit} className="bg-sky-700 text-white px-4 py-2 rounded-md shadow hover:bg-sky-800 disabled:opacity-50" disabled={isSubmitting}>{isSubmitting ? '提交中...' : '確認新增'}</button>
-                                            <button
-                                                onClick={() => {
-                                                    setShowForm(false);
-                                                    setFormErrors({});
-                                                    setFormData({ groom_name: "", bride_name: "", email: "", phone: "", wedding_date: "", wedding_location: "", form_link: "" });
-                                                }}
-                                                className="bg-slate-500 text-white px-4 py-2 rounded-md shadow hover:bg-slate-600 disabled:opacity-50"
-                                                disabled={isSubmitting}
-                                            >
-                                                取消
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
 
                             {/* 客戶列表表格 */}
                             <div className="overflow-x-auto mt-6">
