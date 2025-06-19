@@ -1,105 +1,248 @@
 // backend/AI/googleSheetsService.js
 
-/* eslint-env node */ // 告訴 ESLint 這是 Node.js 環境
-
+const { GoogleAuth } = require('google-auth-library');
 const { google } = require('googleapis');
 const path = require('path');
 
-// 載入環境變數：確保 .env 檔案在 backend/ 目錄
-// 因為此檔案在 backend/AI/，所以 .env 在上層目錄 ../
-const dotenvResult = require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
-if (dotenvResult.error) {
-    console.error("dotenv 載入 .env 檔案時發生錯誤 (googleSheetsService):", dotenvResult.error);
+let sheets = null; // Google Sheets API 客戶端實例，初始化為 null
+let authClient = null; // 認證後的客戶端實例，初始化為 null
+let initializationPromise = null; // 用於追蹤初始化 Promise
+let headerToColumnMap = {}; // 用於儲存標頭名稱到其對應的 Google Sheet 欄位字母的映射
+
+// 定義所有我們預期在 Google Sheet 中出現的必要標頭及其在程式碼中對應的鍵名。
+const REQUIRED_HEADERS_CONFIG = [
+    { name: '時間戳記', key: '時間戳記' },
+    { name: '姓名', key: '姓名' },
+    { name: '與新人的關係', key: '與新人的關係' },
+    { name: '你的 E-mail', key: 'E-mail' },
+    { name: '清晰個人照片上傳', key: 'photo_url' },
+    { name: '上傳語音檔', key: '上傳語音檔' },
+    { name: 'AI生成影片網址', key: 'AI生成影片網址' },
+    { name: 'AI生成影片檔案大小（MB）', key: '影片大小' },
+    { name: 'AI生成祝福語', key: 'blessing' },
+    { name: '祝福風格選擇', key: '祝福風格選擇' },
+    { name: '若想自己寫，請輸入祝福語', key: '若想自己寫，請輸入祝福語' },
+    { name: 'AI生成狀態', key: 'status' }
+];
+
+// 從 0-based 欄位索引轉換為 A1 表示法中的欄位字母 (例如 0 -> A, 25 -> Z, 26 -> AA)
+function getColumnLetter(colIndex) {
+    let result = '';
+    while (colIndex >= 0) {
+        result = String.fromCharCode(65 + (colIndex % 26)) + result;
+        colIndex = Math.floor(colIndex / 26) - 1;
+    }
+    return result;
 }
-
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID;
-const GOOGLE_SHEETS_KEY_FILE_PATH = process.env.GOOGLE_SHEETS_KEY_FILE;
-
-if (!SPREADSHEET_ID) {
-    console.error("錯誤：未找到 GOOGLE_SHEET_ID 環境變數。請檢查 .env 檔案的路徑與內容。");
-    process.exit(1);
-}
-if (!GOOGLE_SHEETS_KEY_FILE_PATH) {
-    console.error("錯誤：未找到 GOOGLE_SHEETS_KEY_FILE 環境變數。請檢查 .env 檔案的路徑與內容。");
-    console.error("請在 .env 中設定 GOOGLE_SHEETS_KEY_FILE 為您的 JSON 金鑰檔案的絕對路徑。");
-    process.exit(1);
-}
-
-const auth = new google.auth.GoogleAuth({
-    keyFile: GOOGLE_SHEETS_KEY_FILE_PATH, // 直接使用環境變數提供的絕對路徑
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
-
-const sheets = google.sheets({ version: 'v4', auth });
-
-const SHEET_NAME = '表單回應 1'; // 根據您的截圖，工作表名稱是 '表單回應 1'
-const RANGE = `${SHEET_NAME}!A:Z`;
-
-// 賓客數據的欄位映射 (將 Google Sheet 的中文表頭映射到程式碼中的英文 key)
-// 這裡的值 (value) 應該是 Google Sheet 中「修剪過空格後」的精確表頭文字
-const HEADER_MAPPING = {
-    timestamp: '時間戳記',
-    name: '姓名',
-    relation: '與新人的關係', // 根據您的日誌，這是修剪空格後的正確名稱
-    email: 'Email',
-    blessing_style_selection: '祝福風格選擇', // 根據您的日誌，這是修剪空格後的正確名稱
-    blessing_suggestion: '若想自己寫，請輸入祝福語', 
-    photo_url: '清晰個人照片上傳', 
-    audio_url: '上傳語音檔', 
-    // 注意：`備註` 這個欄位在您的 Google Sheet 中存在，但它不會被程式碼處理或寫入
-    // blessing 和 video_url 和 status 是我們程式碼會寫回 Google Sheet 的欄位
-    blessing: 'blessing', 
-    video_url: 'video_url', 
-    status: 'status', 
-    _rowIndex: '_rowIndex' // 內部使用，不對應 Google Sheet 實際欄位
-};
 
 /**
- * 從 Google Sheet 讀取所有賓客數據。
- * @returns {Array<Object>} 包含賓客數據的物件陣列，每個物件包含試算表中的所有相關欄位，並添加了內部索引 `_rowIndex`。
+ * 寫入單一標頭到 Google Sheet 的第一行。
+ * 這是 `ensureHeaders` 內部使用的輔助函式。
+ * @param {string} spreadsheetId Google Sheet 的 ID。
+ * @param {string} sheetName 要操作的工作表名稱。
+ * @param {string} columnLetter 標頭要寫入的欄位字母 (例如 'A', 'B', 'AA')。
+ * @param {string} headerValue 要寫入的標頭文字。
+ * @returns {Promise<void>}
  */
-async function readGuestsFromSheet() {
+async function writeHeaderToSheet(spreadsheetId, sheetName, columnLetter, headerValue) {
+    const range = `${sheetName}!${columnLetter}1`;
     try {
-        console.log(`[DEBUG] 嘗試讀取 Google Sheet 中的工作表: '${SHEET_NAME}'`);
-        console.log(`[DEBUG] 嘗試讀取 Google Sheet 的範圍: '${RANGE}'`);
+        await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range,
+            valueInputOption: 'RAW',
+            resource: {
+                values: [[headerValue]],
+            },
+        });
+        console.log(`✅ 成功寫入標頭 '${headerValue}' 到 ${range}`);
+    } catch (error) {
+        console.error(`寫入標頭 '${headerValue}' 到 ${range} 失敗:`, error.message);
+        throw error;
+    }
+}
+
+
+/**
+ * 確保 Google Sheet 中存在所有必要的標頭。如果缺少，則會自動添加它們。
+ * @param {string} spreadsheetId Google Sheet 的 ID。
+ * @param {string} sheetName 要操作的工作表名稱 (例如 '表單回應 1')。
+ * @returns {Promise<void>}
+ */
+async function ensureHeaders(spreadsheetId, sheetName) {
+    try {
+        console.log(`正在檢查並確保工作表 '${sheetName}' 的標頭。`);
 
         const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: RANGE,
+            spreadsheetId,
+            range: `${sheetName}!1:1`, // 只讀取第一行
+        });
+
+        const existingHeaders = response.data.values ? response.data.values[0] : [];
+        const currentHeaderMap = new Map(existingHeaders.map((header, idx) => [header.trim(), idx]));
+
+        let nextColumnIndex = existingHeaders.length; // 從現有標頭的下一列開始添加
+
+        // 清空並重建 headerToColumnMap
+        headerToColumnMap = {};
+
+        for (const config of REQUIRED_HEADERS_CONFIG) {
+            const headerName = config.name;
+            const headerKey = config.key;
+
+            if (!currentHeaderMap.has(headerName)) {
+                const columnLetter = getColumnLetter(nextColumnIndex);
+                console.log(`檢測到缺失標頭: '${headerName}'。正在添加到 '${sheetName}!${columnLetter}1'...`);
+                await writeHeaderToSheet(spreadsheetId, sheetName, columnLetter, headerName);
+                currentHeaderMap.set(headerName, nextColumnIndex); // 更新本地映射
+                nextColumnIndex++; // 準備下一個可用欄位
+            }
+            const colIndex = currentHeaderMap.get(headerName);
+            headerToColumnMap[headerKey] = getColumnLetter(colIndex);
+        }
+        console.log('✅ 所有必要的標頭已確認存在。當前標頭映射:', headerToColumnMap);
+    } catch (error) {
+        console.error('確保 Google Sheet 標頭失敗:', error.message);
+        throw new Error(`無法確保 Google Sheet 標頭: ${error.message}`);
+    }
+}
+
+
+/**
+ * 初始化 Google Sheets 客戶端。
+ * 此函式負責使用服務帳戶憑證進行身份驗證，並建立 Google Sheets API 的客戶端。
+ * 它會確保只執行一次初始化。
+ * @returns {Promise<void>} 一個 Promise，當初始化完成時解析。
+ * @throws {Error} 如果環境變數未設定或初始化過程中發生錯誤。
+ */
+async function initializeSheetsClient() {
+    // 如果已經有初始化 Promise 在進行中或已完成，則返回該 Promise
+    if (initializationPromise) {
+        return initializationPromise;
+    }
+
+    // 否則，建立新的初始化 Promise
+    initializationPromise = (async () => {
+        try {
+            const keyFileName = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+            if (!keyFileName) {
+                throw new Error("GOOGLE_APPLICATION_CREDENTIALS 環境變數未設定。");
+            }
+
+            const backendDir = path.dirname(require.main.filename);
+            const absoluteKeyFilePath = path.join(backendDir, keyFileName);
+
+            console.log("嘗試從金鑰檔案載入憑證:", absoluteKeyFilePath);
+
+            authClient = new GoogleAuth({
+                keyFile: absoluteKeyFilePath,
+                // 關鍵修正：新增 Google Drive API 的寫入範圍
+                scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive.file'],
+            });
+
+            sheets = google.sheets({ version: 'v4', auth: authClient });
+            console.log('✅ 成功初始化 Google Sheets 客戶端！');
+
+            const googleSheetRange = process.env.GOOGLE_SHEET_RANGE || '表單回應 1!A:Z';
+            const sheetName = googleSheetRange.split('!')[0];
+
+            await ensureHeaders(process.env.GOOGLE_SHEET_ID, sheetName);
+
+        } catch (error) {
+            console.error("初始化 Google Sheets 客戶端失敗:", error);
+            // 清除 initializationPromise，以便下次嘗試重新初始化
+            initializationPromise = null;
+            throw new Error(`無法初始化 Google Sheets 客戶端: ${error.message}`);
+        }
+    })(); // 立即執行這個 async 函式並將其 Promise 賦值給 initializationPromise
+
+    return initializationPromise;
+}
+
+/**
+ * 確保 Google Sheets 客戶端已初始化。
+ * 在執行任何讀寫操作前調用此函式。
+ */
+async function ensureClientInitialized() {
+    if (!sheets) {
+        // 如果客戶端未初始化，則嘗試初始化
+        await initializeSheetsClient();
+    }
+    // 如果 initializeSheetsClient() 因錯誤而將 initializationPromise 設為 null
+    // 則再次檢查 sheets 是否為 null，如果仍為 null 則拋出錯誤
+    if (!sheets) {
+        throw new Error("Google Sheets 客戶端未能成功初始化。");
+    }
+}
+
+/**
+ * 獲取已認證的 Google Auth 客戶端實例。
+ * @returns {Promise<GoogleAuth>} 已認證的 Google Auth 客戶端。
+ * @throws {Error} 如果客戶端未初始化。
+ */
+async function getAuthClient() {
+    await ensureClientInitialized(); // 確保客戶端已初始化
+    if (!authClient) {
+        throw new Error("Google Auth 客戶端未能成功初始化。");
+    }
+    return authClient;
+}
+
+
+/**
+ * 從 Google Sheet 讀取數據。
+ * 使用 headerToColumnMap 來確保正確解析欄位。
+ * @param {string} spreadsheetId Google Sheet 的 ID。
+ * @param {string} range 要讀取的範圍 (例如 'Sheet1!A:Z').
+ * @returns {Promise<Array<Object>>} 解析為包含數據的物件陣列。
+ * @throws {Error} 如果讀取操作失敗或客戶端未初始化。
+ */
+async function readGoogleSheet(spreadsheetId, range) {
+    await ensureClientInitialized(); // 確保客戶端已初始化
+
+    if (Object.keys(headerToColumnMap).length === 0) {
+        console.warn("headerToColumnMap 尚未設定，可能在初始化時發生問題。嘗試重新確保標頭。");
+        const sheetName = range.split('!')[0];
+        await ensureHeaders(spreadsheetId, sheetName);
+        if (Object.keys(headerToColumnMap).length === 0) {
+            throw new Error("無法獲取標頭映射，請檢查 Google Sheets 憑證和網路連線。");
+        }
+    }
+
+    try {
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range,
         });
 
         const rows = response.data.values;
         if (!rows || rows.length === 0) {
-            console.log('Google Sheet 中沒有找到數據。');
             return [];
         }
 
-        const headers = rows[0]; // 第一行是表頭
-        console.log("[DEBUG] Google Sheet 實際讀取的表頭 (包含空格):", headers); // 顯示原始表頭
-        const data = rows.slice(1).map((row, index) => {
-            const rowObject = {};
-            headers.forEach((header, colIndex) => {
-                // ！！！關鍵修正：在比對前，修剪從 Google Sheet 讀取的表頭字符串！！！
-                const trimmedHeader = header.trim(); 
-                // 將 Google Sheet 的表頭（trimmedHeader）與 HEADER_MAPPING 中的值（中文表頭）進行匹配
-                // 找到對應的英文 key，然後將 row[colIndex] 的值賦給該 key
-                const mappedEntry = Object.entries(HEADER_MAPPING).find(([key, value]) => value.toLowerCase() === trimmedHeader.toLowerCase());
-                
-                if (mappedEntry) {
-                    const englishKey = mappedEntry[0]; // 獲取英文 key (例如 'name', 'blessing_suggestion')
-                    rowObject[englishKey] = row[colIndex] || ''; // 如果單元格為空則設定為空字串
-                    // console.log(`[DEBUG] 映射成功: 表頭 '${trimmedHeader}' -> 內部鍵 '${englishKey}', 值: '${rowObject[englishKey]}'`); // 啟用此行可查看詳細映射過程
-                } else {
-                    // console.log(`[DEBUG] 映射失敗: 表頭 '${trimmedHeader}' (原始: '${header}') (未找到對應的內部鍵)。`); // 啟用此行可查看詳細映射失敗原因
-                }
-            });
-            // 添加一個內部索引，用於後續更新試算表時定位行
-            rowObject._rowIndex = index; 
-            // console.log(`[DEBUG] 處理後行物件 (索引 ${index}):`, rowObject); // 啟用此行可查看詳細處理後的行物件
-            return rowObject;
-        });
+        const headersInSheet = rows[0].map(header => header.trim());
+        const data = [];
 
-        console.log("從 Google Sheet 讀取到的數據 (前2行):", data.slice(0, 2)); // 輸出前2行以供調試
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            const rowData = { _rowIndex: i + 1 }; // 添加原始行號 (基於 1)
+
+            // 遍歷我們定義的 REQUIRED_HEADERS_CONFIG，使用其 keyName
+            for (const config of REQUIRED_HEADERS_CONFIG) {
+                const sheetHeaderName = config.name; // Google Sheet 上的標頭名稱
+                const internalKey = config.key;      // 程式碼中使用的鍵名
+
+                // 找到這個標頭在 sheet 中的實際列索引
+                const colIndex = headersInSheet.indexOf(sheetHeaderName);
+
+                if (colIndex !== -1 && colIndex < row.length) {
+                    rowData[internalKey] = row[colIndex] || '';
+                } else {
+                    rowData[internalKey] = ''; // 如果欄位不存在或該行沒有數據，則為空
+                }
+            }
+            data.push(rowData);
+        }
         return data;
     } catch (error) {
         console.error('讀取 Google Sheet 失敗:', error.message);
@@ -107,52 +250,59 @@ async function readGuestsFromSheet() {
     }
 }
 
+
 /**
  * 更新 Google Sheet 中的單元格。
- * @param {number} rowIndex 數據在陣列中的原始索引 (從 0 開始)。
- * @param {string} internalColumnName 程式碼中使用的欄位名稱（英文 key）。
- * @param {string} value 要寫入的值。
+ * 使用 headerToColumnMap 來確保正確定位欄位。
+ * @param {string} spreadsheetId Google Sheet 的 ID。
+ * @param {string} internalKey 程式碼中使用的欄位鍵名 (例如 'blessing', 'status').
+ * @param {number} rowIndex 要更新的行號 (基於 1)。
+ * @param {string} value 要寫入單元格的值。
+ * @param {boolean} callEnsureHeaders - 是否在呼叫前檢查並確保標頭存在 (預設為 true)。
+ * 在 ensureHeaders 內部呼叫時應設定為 false，以避免無限遞迴。
+ * @returns {Promise<void>}
+ * @throws {Error} 如果更新操作失敗或客戶端未初始化。
  */
-async function updateSheetCell(rowIndex, internalColumnName, value) {
-    try {
-        let sheetColumnName = HEADER_MAPPING[internalColumnName] || internalColumnName;
-        
-        const headersResponse = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!1:1`, // 只讀取第一行以獲取表頭
-        });
-        const headers = headersResponse.data.values[0];
+async function updateGoogleSheetCell(spreadsheetId, internalKey, rowIndex, value, callEnsureHeaders = true) {
+    await ensureClientInitialized(); // 確保客戶端已初始化
 
-        // 查找實際的列索引，無論是根據 HEADER_MAPPING 中的值還是 internalColumnName
-        // ！！！關鍵修正：在比對前，修剪從 Google Sheet 讀取的表頭字符串！！！
-        const columnIndex = headers.findIndex(header => header.trim().toLowerCase() === sheetColumnName.toLowerCase()); // ADDED TRIM HERE
-
-        if (columnIndex === -1) {
-            console.error(`錯誤：未在 Google Sheet 中找到欄位名稱 '${sheetColumnName}' (內部名稱: ${internalColumnName})。請確認您的試算表表頭是否包含此欄位。`);
-            return;
+    if (callEnsureHeaders && Object.keys(headerToColumnMap).length === 0) {
+        console.warn("headerToColumnMap 尚未設定，可能在初始化時發生問題。嘗試重新確保標頭。");
+        const sheetName = process.env.GOOGLE_SHEET_RANGE.split('!')[0];
+        await ensureHeaders(spreadsheetId, sheetName);
+        if (Object.keys(headerToColumnMap).length === 0) {
+            throw new Error("無法獲取標頭映射，請檢查 Google Sheets 憑證和網路連線。");
         }
+    }
 
-        const columnLetter = String.fromCharCode(65 + columnIndex); // 將索引轉換為 Excel 的欄位字母
-        const actualSheetRow = rowIndex + 2; // +2 是因為 Google Sheet 從 1 開始，且我們跳過了表頭行
-        const updateRange = `${SHEET_NAME}!${columnLetter}${actualSheetRow}`;
+    const columnLetter = headerToColumnMap[internalKey];
+    if (!columnLetter) {
+        console.error(`未找到鍵名 '${internalKey}' 對應的欄位字母。請檢查 REQUIRED_HEADERS_CONFIG。`);
+        throw new Error(`無法更新：欄位 '${internalKey}' 不存在於標頭映射中。`);
+    }
 
+    const range = `${process.env.GOOGLE_SHEET_RANGE.split('!')[0]}!${columnLetter}${rowIndex}`; // 使用提取的工作表名稱和動態欄位字母
+
+    try {
         await sheets.spreadsheets.values.update({
-            spreadsheetId: SPREADSHEET_ID,
-            range: updateRange,
+            spreadsheetId,
+            range,
             valueInputOption: 'RAW',
             resource: {
                 values: [[value]],
             },
         });
-        console.log(`成功更新 ${updateRange} 為 '${value}'。`);
+        console.log(`✅ 成功更新 Google Sheet 儲存格 ${range} (鍵: ${internalKey}) 為 "${value}"`);
     } catch (error) {
-        console.error(`更新 Google Sheet 失敗 (${internalColumnName} ${rowIndex}):`, error.message);
+        console.error(`更新 Google Sheet 儲存格 ${range} (鍵: ${internalKey}) 失敗:`, error.message);
         throw error;
     }
 }
 
 module.exports = {
-    readGuestsFromSheet,
-    updateSheetCell,
-    HEADER_MAPPING // 也匯出映射，以供外部參考
+    initializeSheetsClient,
+    readGoogleSheet,
+    updateGoogleSheetCell,
+    getAuthClient, // 新增：匯出獲取認證客戶端的函式
+    getColumnLetter
 };

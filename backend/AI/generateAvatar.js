@@ -1,360 +1,463 @@
 // backend/AI/generateAvatar.js
-
-/* eslint-env node */ // 告訴 ESLint 這是 Node.js 環境
-
+const { spawn } = require('child_process');
 const path = require('path');
-// 載入環境變數 (例如 DID_API_KEY, GOOGLE_SHEET_ID, GOOGLE_SHEETS_KEY_FILE)
-// 使用 path.resolve 確保 dotenv.config 獲得絕對路徑
-// 根據使用者說明，.env 檔案位於 backend 資料夾內，所以路徑是 ../.env
-const dotenvResult = require('dotenv').config({ path: path.resolve(__dirname, '../.env') }); // <-- 修正這裡的路徑！
+const fs = require('fs');
+// 引入 getAuthClient，用於 Google Drive API 認證
+const { readGoogleSheet, updateGoogleSheetCell, getAuthClient } = require('../AI/googleSheetsService');
+const textToSpeech = require('@google-cloud/text-to-speech');
+const sharp = require('sharp'); // Import sharp library for image processing
+const { google } = require('googleapis'); // 引入 googleapis 用於 Google Drive API
 
-// 檢查 dotenv 是否成功解析了 .env 檔案
-if (dotenvResult.error) {
-    console.error("dotenv 載入 .env 檔案時發生錯誤:", dotenvResult.error);
-} else if (dotenvResult.parsed) {
-    console.log("dotenv 成功解析 .env 檔案。載入變數數量:", Object.keys(dotenvResult.parsed).length);
-} else {
-    console.log("dotenv 未解析任何變數，可能檔案為空或格式錯誤。");
-}
+const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
+// 從環境變數中獲取 Google Drive 資料夾 ID
+const GOOGLE_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
+// 設定暫存檔案儲存目錄
+const TEMP_DIR = path.join(__dirname, 'wav2lip_temp_files');
 
-const { google } = require('googleapis');
-const axios = require('axios'); 
-
-// 從環境變數獲取 API 金鑰
-const DID_API_KEY = process.env.DID_API_KEY;
-// 從環境變數獲取 Google Sheet ID
-const SPREADSHEET_ID = process.env.GOOGLE_SHEET_ID; // 注意：這裡應該是 GOOGLE_SHEET_ID
-// 從環境變數獲取 Google Sheets 服務帳戶金鑰檔案路徑
-const GOOGLE_SHEETS_KEY_FILE_PATH = process.env.GOOGLE_SHEETS_KEY_FILE;
-
-// --- 新增日誌輸出，幫助你確認環境變數是否成功載入 ---
-console.log('--- 環境變數檢查 ---');
-console.log(`載入 .env 檔案路徑: ${path.resolve(__dirname, '../.env')}`); // 顯示解析後的 .env 檔案路徑
-
-// 顯示已載入的環境變數 (遮蔽敏感資訊)
-const envVars = {};
-const relevantKeys = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'PORT', 'GOOGLE_SHEETS_KEY_FILE', 'GOOGLE_SHEET_ID', 'OPENAI_KEY', 'DID_API_KEY'];
-
-for (const key of relevantKeys) {
-    if (process.env[key]) {
-        if (key.includes('KEY') || key.includes('PASSWORD') || key.includes('SECRET')) {
-            envVars[key] = '已載入 (遮蔽)';
-        } else {
-            envVars[key] = process.env[key];
-        }
+// 初始化 Google Cloud Text-to-Speech 客戶端
+let ttsClient;
+try {
+    const keyFileName = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    if (!keyFileName) {
+        console.warn("GOOGLE_APPLICATION_CREDENTIALS 環境變數未設定，語音合成功能可能無法運作。");
     } else {
-        envVars[key] = '未載入或為空';
+        const backendDir = path.dirname(require.main.filename);
+        const absoluteKeyFilePath = path.join(backendDir, keyFileName);
+        ttsClient = new textToSpeech.TextToSpeechClient({
+            keyFilename: absoluteKeyFilePath,
+        });
+        console.log('✅ Google Cloud Text-to-Speech 客戶端初始化成功！');
     }
-}
-console.log('實際載入的環境變數 (與 .env 相關)：', envVars);
-console.log('--------------------');
-// --- 結束新增日誌輸出 ---
-
-
-// 檢查 D-ID 金鑰是否存在
-if (!DID_API_KEY) {
-    console.error("錯誤：未找到 DID_API_KEY 環境變數。請檢查 .env 檔案的路徑與內容。");
-    process.exit(1); // 終止腳本執行
+} catch (error) {
+    console.error('初始化 Google Cloud Text-to-Speech 客戶端失敗:', error);
 }
 
-// 檢查 Google Sheet ID 是否存在
-if (!SPREADSHEET_ID) {
-    console.error("錯誤：未找到 GOOGLE_SHEET_ID 環境變數。請檢查 .env 檔案的路徑與內容。");
-    process.exit(1); // 終止腳本執行
+// 檢查 Google Drive 資料夾 ID 是否已設定
+if (!GOOGLE_DRIVE_FOLDER_ID) {
+    console.warn("⚠️ 警告：GOOGLE_DRIVE_FOLDER_ID 環境變數未設定。生成的影片將無法上傳到 Google Drive。請檢查 .env 檔案。");
 }
 
-// 檢查 Google Sheets 服務帳戶金鑰檔案路徑是否存在
-if (!GOOGLE_SHEETS_KEY_FILE_PATH) {
-    console.error("錯誤：未找到 GOOGLE_SHEETS_KEY_FILE 環境變數。請檢查 .env 檔案的路徑與內容。");
-    console.error("請在 .env 中設定 GOOGLE_SHEETS_KEY_FILE 為您的 JSON 金鑰檔案的絕對路徑。");
-    process.exit(1); // 終止腳本執行
-}
-
-
-// D-ID API 相關設定
-const DID_API_URL = 'https://api.d-id.com/talks';
-const DID_HEADERS = {
-    'Authorization': `ApiKey ${DID_API_KEY}`,
-    'Content-Type': 'application/json',
-};
-
-// Google Sheets 服務帳戶驗證
-const auth = new google.auth.GoogleAuth({
-    keyFile: GOOGLE_SHEETS_KEY_FILE_PATH, // 直接使用環境變數提供的絕對路徑
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
-
-const sheets = google.sheets({ version: 'v4', auth });
-
-// --- 設定你的 Google Sheet 資訊 (需與 generateBlessings.js 一致) ---
-// SPREADSHEET_ID 已從環境變數讀取
-const SHEET_NAME = '表單回應 1'; // <-- 確認這裡，應該是 '表單回應 1'
-const RANGE = `${SHEET_NAME}!A:Z`; // 讀取整個工作表範圍
-
-// 賓客數據的欄位映射 (與 Google Sheet 表頭對應)
-// 這裡的值 (value) 應該是 Google Sheet 中「修剪過空格後」的精確表頭文字
-const HEADER_MAPPING = {
-    timestamp: '時間戳記', // 從 googleSheetsService.js 複製過來，確保一致
-    name: '姓名',
-    relation: '與新人的關係', // 移除表頭中的多餘空格
-    email: 'Email',
-    blessing_style_selection: '祝福風格選擇', // 移除表頭中的多餘空格
-    blessing_suggestion: '若想自己寫，請輸入祝福語', 
-    photo_url: '清晰個人照片上傳', // 移除表頭中的多餘空格
-    audio_url: '上傳語音檔', 
-    blessing: 'blessing',
-    video_url: 'video_url',
-    status: 'status',
+/**
+ * 確保暫存目錄存在。
+ * @param {string} dirPath - 要檢查或建立的目錄路徑。
+ */
+const ensureDirExists = (dirPath) => {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+        console.log(`已建立暫存目錄: ${dirPath}`);
+    }
 };
 
 /**
- * 讀取 Google Sheet 中的數據
- * @returns {Array<Object>} 包含賓客數據的物件陣列
+ * 清理暫存檔案和目錄。
+ * @param {string} dirPath - 要清理的目錄路徑。
  */
-async function readSheet() {
-    try {
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: RANGE,
-        });
+const cleanupTempFiles = (dirPath) => {
+    if (fs.existsSync(dirPath)) {
+        fs.rmSync(dirPath, { recursive: true, force: true });
+        console.log(`暫存工作目錄 ${dirPath} 已被清理。`);
+    } else {
+        console.log(`暫存工作目錄 ${dirPath} 不存在，無需清理。`);
+    }
+};
 
-        const rows = response.data.values;
-        if (!rows || rows.length === 0) {
-            console.log('Google Sheet 中沒有找到數據。');
-            return [];
+/**
+ * 下載 Google Drive 檔案。
+ * @param {string} driveUrl - Google Drive 分享連結。
+ * @param {string} outputPath - 要儲存下載檔案的路徑。
+ * @returns {Promise<string>} - 下載檔案的路徑。
+ */
+const downloadGoogleDriveFile = async (driveUrl, outputPath) => {
+    const fileIdMatch = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
+    if (!fileIdMatch || !fileIdMatch[1]) {
+        throw new Error('無效的 Google Drive URL。');
+    }
+    const fileId = fileIdMatch[1];
+    const directDownloadUrl = `https://docs.google.com/uc?export=download&id=${fileId}`;
+
+    console.log(`正在下載檔案: ${directDownloadUrl} 到 ${outputPath}`);
+    try {
+        const response = await fetch(directDownloadUrl);
+        if (!response.ok) {
+            const errorText = await response.text();
+            if (errorText.includes('Quota exceeded') || errorText.includes('Daily download quota exceeded')) {
+                throw new Error('Google Drive 下載配額已用完，請稍後再試。');
+            }
+            throw new Error(`下載失敗，HTTP 狀態: ${response.status} - ${errorText.substring(0, 200)}...`);
         }
 
-        const headers = rows[0]; // 第一行是表頭
-        const data = rows.slice(1).map(row => {
-            const rowObject = {};
-            headers.forEach((header, index) => {
-                // ！！！關鍵修正：在比對前，修剪從 Google Sheet 讀取的表頭字符串！！！
-                const trimmedHeader = header.trim(); 
-                // 使用 HEADER_MAPPING 來匹配表頭
-                const mappedEntry = Object.entries(HEADER_MAPPING).find(([key, value]) => value.toLowerCase() === trimmedHeader.toLowerCase());
-                if (mappedEntry) {
-                    const englishKey = mappedEntry[0];
-                    rowObject[englishKey] = row[index] || '';
-                }
-            });
-            return rowObject;
-        });
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
 
-        console.log("從 Google Sheet 讀取到的原始數據 (前5行):", data.slice(0, 5)); // 輸出部分原始數據以供調試
-        return data;
+        fs.writeFileSync(outputPath, buffer);
+        console.log(`成功下載檔案到: ${outputPath}`);
+        return outputPath;
     } catch (error) {
-        console.error('讀取 Google Sheet 失敗:', error.message);
+        console.error(`下載 Google Drive 檔案失敗 (${driveUrl}):`, error);
         throw error;
     }
+};
+
+/**
+ * 處理影像緩衝區並將其儲存為標準 JPG 格式。
+ * 這有助於清理影像中繼資料並確保與 OpenCV 的兼容性。
+ * 它還會積極調整影像大小以減少 Wav2Lip 的 GPU 記憶體使用。
+ * @param {Buffer} inputBuffer - 輸入影像的緩衝區。
+ * @param {string} outputPath - 要儲存處理後影像的路徑。
+ * @returns {Promise<string>} - 處理後影像的路徑。
+ */
+const processAndSaveImage = async (inputBuffer, outputPath) => {
+    console.log(`正在處理影像並儲存為標準 JPG: ${outputPath}`);
+    try {
+        // 使用 sharp 處理並轉換為乾淨的 JPG 格式
+        // 將圖片的最大寬度/高度限制在 128px，同時保持長寬比。
+        // 這將大幅減少記憶體使用，希望能解決 CUDA OOM 問題。
+        await sharp(inputBuffer)
+            .resize({ width: 128, height: 128, fit: sharp.fit.inside, withoutEnlargement: true })
+            .jpeg({
+                quality: 90,
+                progressive: true,
+                chromaSubsampling: '4:4:4',
+                mozjpeg: true
+            })
+            .toFile(outputPath);
+        console.log(`成功處理並儲存影像到: ${outputPath}`);
+        return outputPath;
+    }
+    catch (error) {
+        console.error(`處理並儲存影像到 ${outputPath} 失敗:`, error);
+        throw error;
+    }
+};
+
+/**
+ * 使用 Wav2Lip 生成影片。
+ * @param {string} faceImagePath - 包含臉部的影像路徑。
+ * @param {string} audioPath - 音訊檔案路徑。
+ * @param {string} outputPath - 輸出影片的路徑。
+ * @param {string} tempDirPath - 暫存目錄的路徑。
+ * @returns {Promise<string>} - 生成影片的路徑。
+ */
+const generateWav2LipVideo = (faceImagePath, audioPath, outputPath, tempDirPath) => {
+    return new Promise((resolve, reject) => {
+        const scriptPath = path.join(__dirname, 'wav2lip_repo', 'inference.py');
+        const checkpointPath = path.join(__dirname, 'wav2lip_repo', 'checkpoints', 'wav2lip_gan.pth');
+
+        if (!fs.existsSync(checkpointPath)) {
+            console.error(`Wav2Lip 模型未找到: ${checkpointPath}`);
+            return reject(new Error(`Wav2Lip 模型未找到。請確保 'wav2lip_gan.pth' 檔案在 ${path.join(__dirname, 'wav2lip_repo', 'checkpoints')} 中。`));
+        }
+
+        console.log(`正在使用 Wav2Lip 生成影片...`);
+        console.log(`影像: ${faceImagePath}, 音訊: ${audioPath}, 輸出: ${outputPath}`);
+
+        // 轉換 Windows 路徑為正斜線，以兼容 Python
+        const normalizedFaceImagePath = faceImagePath.replace(/\\/g, '/');
+        const normalizedAudioPath = audioPath.replace(/\\/g, '/');
+        const normalizedOutputPath = outputPath.replace(/\\/g, '/');
+        const normalizedCheckpointPath = checkpointPath.replace(/\\/g, '/');
+
+        const args = [
+            'python', scriptPath,
+            '--checkpoint_path', normalizedCheckpointPath,
+            '--face', normalizedFaceImagePath,
+            '--audio', normalizedAudioPath,
+            '--outfile', normalizedOutputPath,
+            '--resize_factor', '2', // 保留此參數作為額外安全措施
+        ];
+
+        console.log(`DEBUG: 正在執行 Python 進程指令: ${args.join(' ')}`);
+
+        const pythonProcess = spawn(args[0], args.slice(1), {
+            cwd: path.join(__dirname, 'wav2lip_repo'),
+            stdio: 'pipe'
+        });
+
+        let stdout = '';
+        let stderr = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+            stdout += data.toString();
+            console.log(`Wav2Lip 標準輸出: ${data}`);
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            stderr += data.toString();
+            console.error(`Wav2Lip 標準錯誤: ${data}`);
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (code === 0) {
+                console.log(`Wav2Lip 影片生成成功: ${outputPath}`);
+                resolve(outputPath);
+            } else {
+                console.error(`Wav2Lip 進程以代碼 ${code} 退出。`);
+                console.error(`標準輸出: ${stdout}`);
+                console.error(`標準錯誤: ${stderr}`);
+                reject(new Error(`Wav2Lip 影片生成失敗，退出代碼 ${code}。錯誤訊息: ${stderr || '無'}`));
+            }
+        });
+
+        pythonProcess.on('error', (err) => {
+            console.error('Wav2Lip 進程啟動失敗或遇到運行時錯誤:', err);
+            reject(new Error(`Wav2Lip 進程錯誤: ${err.message}`));
+        });
+    });
+};
+
+/**
+ * 使用 Google Cloud Text-to-Speech API 從文字生成音訊檔案。
+ * @param {string} text - 要轉換為語音的文字。
+ * @returns {Promise<Buffer>} - 音訊檔案的二進制數據。
+ */
+async function generateAudioFromText(text) {
+    if (!ttsClient) {
+        throw new Error("Google Cloud Text-to-Speech 客戶端未初始化。請檢查服務帳戶憑證和環境變數。");
+    }
+    if (!text || text.trim() === '') {
+        throw new Error("提供的文字為空，無法生成語音。");
+    }
+
+    console.log(`正在使用 Google Cloud Text-to-Speech API 生成音訊...`);
+
+    const request = {
+        input: { text: text },
+        voice: { languageCode: 'zh-TW', name: 'cmn-TW-Wavenet-A' }, // 確保使用您想要的語言和聲音
+        audioConfig: { audioEncoding: 'MP3' },
+    };
+
+    try {
+        const [response] = await ttsClient.synthesizeSpeech(request);
+        console.log('Google Cloud Text-to-Speech API 音訊內容生成成功。');
+        return Buffer.from(response.audioContent);
+    } catch (error) {
+        console.error('Google Cloud Text-to-Speech API 音訊生成失敗:', error);
+        throw new Error(`TTS 音訊生成失敗: ${error.message}`);
+    }
 }
 
 /**
- * 更新 Google Sheet 中的單元格
- * @param {number} rowIndex 數據在陣列中的索引 (從 0 開始)
- * @param {string} internalColumnName 程式碼中使用的欄位名稱（英文 key）
- * @param {string} value 要寫入的值
+ * 將檔案上傳到 Google Drive 並使其公開可存取。
+ * @param {string} filePath - 要上傳的本地檔案路徑。
+ * @param {string} fileName - 在 Google Drive 上顯示的檔案名稱。
+ * @param {string} mimeType - 檔案的 MIME 類型 (例如 'video/mp4')。
+ * @returns {Promise<string>} 上傳檔案的公共 URL (webViewLink)。
+ * @throws {Error} 如果上傳失敗或缺少資料夾 ID。
  */
-async function updateSheetCell(rowIndex, internalColumnName, value) {
+async function uploadFileToGoogleDrive(filePath, fileName, mimeType) {
+    if (!GOOGLE_DRIVE_FOLDER_ID) {
+        console.error("錯誤：GOOGLE_DRIVE_FOLDER_ID 環境變數未設定，無法上傳檔案到 Google Drive。");
+        throw new Error("GOOGLE_DRIVE_FOLDER_ID is not set.");
+    }
+
     try {
-        let sheetColumnName = HEADER_MAPPING[internalColumnName] || internalColumnName;
-        
-        const headersResponse = await sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!1:1`,
+        const auth = await getAuthClient(); // 從 googleSheetsService 獲取認證客戶端
+        const drive = google.drive({ version: 'v3', auth });
+
+        const fileMetadata = {
+            name: fileName,
+            parents: [GOOGLE_DRIVE_FOLDER_ID]
+        };
+        const media = {
+            mimeType: mimeType,
+            body: fs.createReadStream(filePath)
+        };
+
+        console.log(`正在上傳檔案 '${fileName}' 到 Google Drive 資料夾 ID: ${GOOGLE_DRIVE_FOLDER_ID}...`);
+        const file = await drive.files.create({
+            resource: fileMetadata,
+            media: media,
+            fields: 'id,webViewLink,webContentLink,thumbnailLink' // 請求返回 id 和可視化連結, thumbnailLink
         });
-        const headers = headersResponse.data.values[0];
+        console.log(`檔案上傳成功，ID: ${file.data.id}`);
 
-        // 查找實際的列索引，無論是根據 HEADER_MAPPING 中的值還是 internalColumnName
-        // ！！！關鍵修正：在比對前，修剪從 Google Sheet 讀取的表頭字符串！！！
-        const columnIndex = headers.findIndex(header => header.trim().toLowerCase() === sheetColumnName.toLowerCase()); // ADDED TRIM HERE
-
-        if (columnIndex === -1) {
-            console.error(`錯誤：未找到欄位名稱 '${sheetColumnName}' (內部名稱: ${internalColumnName})。`);
-            return;
-        }
-
-        const columnLetter = String.fromCharCode(65 + columnIndex);
-        const updateRange = `${SHEET_NAME}!${columnLetter}${rowIndex + 2}`; // +2 是因為 Google Sheet 從 1 開始，且我們跳過了表頭行
-
-        await sheets.spreadsheets.values.update({
-            spreadsheetId: SPREADSHEET_ID,
-            range: updateRange,
-            valueInputOption: 'RAW',
-            resource: {
-                values: [[value]],
+        // 設定檔案權限為公開
+        await drive.permissions.create({
+            fileId: file.data.id,
+            requestBody: {
+                role: 'reader',
+                type: 'anyone',
             },
+            fields: 'id', // 只請求 id 字段
         });
-        console.log(`成功更新 ${updateRange} 為 '${value}'。`);
+        console.log(`檔案 '${fileName}' 已設定為公開可讀取。`);
+
+        // 返回 webViewLink 作為公共 URL
+        // webViewLink 通常用於在瀏覽器中查看檔案，對於影片播放可能更好
+        console.log(`Google Drive 公開連結: ${file.data.webViewLink}`);
+        return file.data.webViewLink;
     } catch (error) {
-        console.error(`更新 Google Sheet 失敗 (${internalColumnName} ${rowIndex}):`, error.message);
-        throw error;
+        console.error(`上傳檔案到 Google Drive 失敗:`, error);
+        // 增加更詳細的錯誤訊息，特別是針對 Google API 錯誤
+        if (error.response && error.response.data && error.response.data.error) {
+            console.error("Google Drive API 錯誤詳細資訊:", error.response.data.error);
+            throw new Error(`上傳檔案到 Google Drive 失敗: ${error.response.data.error.message}`);
+        }
+        throw new Error(`上傳檔案到 Google Drive 失敗: ${error.message}`);
     }
 }
 
 /**
- * 使用 D-ID API 生成 AI 影片
- * @param {string} photoUrl 說話者圖像 URL (通常是靜態頭像照片)
- * @param {string} text 要讓 AI 說出的文字 (祝福語)
- * @param {string} audioUrl 預錄的音檔 URL (如果提供，則優先於文字轉語音)
- * @returns {string} 生成的影片 URL
+ * 處理單一賓客的 AI 影片生成流程。
+ * @param {Object} guestData - 賓客數據物件。
+ * @param {string} googleSheetId - Google Sheet ID。
+ * @returns {Promise<Object>} - 包含生成結果的物件。
  */
-async function generateDIDVideo(photoUrl, text, audioUrl = null) {
-    console.log(`為圖像 ${photoUrl} 生成 D-ID 影片...`);
-    try {
-        let payload;
-        if (audioUrl && audioUrl.trim() !== '') {
-            // 如果提供了 audioUrl，則使用 audio_url
-            payload = {
-                script: {
-                    type: "audio",
-                    audio_url: audioUrl
-                },
-                source_url: photoUrl,
-            };
-            console.log(`使用音檔 URL: ${audioUrl} 生成 D-ID 影片。`);
-        } else {
-            // 否則，使用文字轉語音
-            payload = {
-                script: {
-                    type: "text",
-                    input: text,
-                    voice_id: "zh-CN-XiaoxiaoNeural", 
-                },
-                source_url: photoUrl,
-            };
-            console.log(`使用文字轉語音生成 D-ID 影片，文本: "${text}"`);
-        }
-
-
-        const response = await axios.post(DID_API_URL, payload, { headers: DID_HEADERS });
-
-        const talkId = response.data.id;
-        console.log(`D-ID Talk ID: ${talkId}`);
-
-        let videoUrl = null;
-        let attempt = 0;
-        const maxAttempts = 10; 
-        const pollInterval = 5000; 
-
-        while (!videoUrl && attempt < maxAttempts) {
-            console.log(`輪詢 D-ID 影片狀態 (嘗試 ${attempt + 1}/${maxAttempts})...`);
-            await new Promise(resolve => setTimeout(resolve, pollInterval));
-            const talkStatusResponse = await axios.get(`${DID_API_URL}/${talkId}`, { headers: DID_HEADERS });
-            if (talkStatusResponse.data.status === 'done' && talkStatusResponse.data.result_url) {
-                videoUrl = talkStatusResponse.data.result_url;
-                console.log(`D-ID 影片生成完成！ URL: ${videoUrl}`);
-            } else if (talkStatusResponse.data.status === 'started' || talkStatusResponse.data.status === 'in_progress') {
-                // 繼續等待
-            } else {
-                console.error(`D-ID 影片生成失敗，狀態: ${talkStatusResponse.data.status}`);
-                break; 
-            }
-            attempt++;
-        }
-
-        if (!videoUrl) {
-            console.error(`D-ID 影片生成超時或失敗，無法獲取影片 URL。`);
-            return null;
-        }
-
-        return videoUrl;
-    } catch (error) {
-        console.error(`調用 D-ID API 失敗 (${photoUrl}):`, error.message);
-        if (error.response) {
-            console.error('D-ID API 錯誤響應數據:', error.response.data);
-        }
-        return null; 
-    }
-}
-
-/**
- * 主函數：處理 AI 影片生成流程
- * @param {Array<number>} selectedGuestIndexes 選擇要處理的賓客在原始數據陣列中的索引。
- * 注意: 這個 main 函數現在接受 selectedGuestIndexes 參數，
- * 並且不會在模組載入時自動執行。
- */
-async function processAvatars(selectedGuestIndexes = []) {
-    console.log("開始處理選定賓客的 AI 影片生成...");
+async function processAvatar(guestData, googleSheetId) {
+    const guestName = guestData['姓名'] || `未知賓客`;
+    const rowIndex = guestData._rowIndex;
+    const sessionId = Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    const tempDirPath = path.join(TEMP_DIR, `session_${sessionId}`);
+    ensureDirExists(tempDirPath); // 確保此會話的暫存目錄存在
 
     try {
-        const guests = await readSheet(); // 使用本地 readSheet
-        if (guests.length === 0) {
-            console.log("沒有賓客數據可供處理。");
-            return { success: true, message: "沒有賓客數據可供處理。" };
+        console.log(`[DEBUG_CHECK] 賓客 '${guestName}' (原始索引: ${rowIndex}):`);
+        const photoUrl = guestData['photo_url'];
+        const blessingText = guestData['blessing'];
+        const audioUrl = guestData['上傳語音檔'];
+
+        console.log(`[DEBUG_CHECK]   照片 URL: '${photoUrl}' (長度: ${photoUrl ? photoUrl.length : 0})`);
+        console.log(`[DEBUG_CHECK]   祝福語: '${blessingText ? blessingText.substring(0, 100) : ''}...' (長度: ${blessingText ? blessingText.length : 0})`);
+        console.log(`[DEBUG_CHECK]   音訊 URL: '${audioUrl}' (長度: ${audioUrl ? audioUrl.length : 0})`);
+
+        if (!photoUrl || !photoUrl.startsWith('http')) {
+            const message = `照片 URL 缺失或無效，無法生成影片。URL 值: '${photoUrl}'`;
+            console.log(`跳過賓客: ${guestName} (原始索引: ${rowIndex}) - ${message}`);
+            await updateGoogleSheetCell(googleSheetId, 'status', rowIndex, 'video_failed');
+            return { index: rowIndex, success: false, message: `跳過處理: ${message}` };
         }
 
-        let processedCount = 0;
-        const results = [];
-
-        for (const originalIndex of selectedGuestIndexes) {
-            const guest = guests[originalIndex]; // 直接使用索引獲取賓客數據
-
-            if (!guest) {
-                console.warn(`跳過索引 ${originalIndex}: 找不到對應的賓客數據。`);
-                results.push({ index: originalIndex, success: false, message: `找不到賓客數據。` });
-                continue;
-            }
-
-            // 檢查 status 是否為 'blessing_done' 或 'blessing_failed' 且 video_url 欄位是否為空
-            // 已移除對 audio_consent 和 avatar_consent 的檢查
-            const shouldProcess = 
-                (!guest.video_url || guest.video_url.trim() === '') && 
-                (guest.status === 'blessing_done' || guest.status === 'blessing_failed');
-
-            if (shouldProcess) {
-                console.log(`處理賓客影片: ${guest.name} (原始索引: ${originalIndex}, 狀態: ${guest.status})`);
-
-                // 檢查 photo_url 和 blessing 是否存在
-                if (!guest.photo_url || guest.photo_url.trim() === '') {
-                    console.warn(`跳過 ${guest.name}: photo_url 不存在。`);
-                    results.push({ index: originalIndex, success: false, message: `跳過處理: 照片 URL 不存在。` });
-                    await updateSheetCell(originalIndex, 'status', 'video_failed'); // 可以更新狀態
-                    continue;
-                }
-                // 如果沒有 audio_url 但有 blessing，則使用 blessing
-                if (!guest.audio_url || guest.audio_url.trim() === '') {
-                    if (!guest.blessing || guest.blessing.trim() === '') {
-                        console.warn(`跳過 ${guest.name}: blessing 和 audio_url 都不存在。請先運行 generateBlessings.js。`);
-                        results.push({ index: originalIndex, success: false, message: `跳過處理: 無祝福語或音檔。` });
-                        await updateSheetCell(originalIndex, 'status', 'video_failed'); // 可以更新狀態
-                        continue;
+        let finalAudioPath;
+        // 關鍵修正：優先使用 AI 生成的祝福語進行語音合成
+        if (blessingText && blessingText.trim() !== '') {
+            console.log(`優先使用 AI 生成的祝福語為賓客 '${guestName}' 合成音訊。`);
+            try {
+                const audioContent = await generateAudioFromText(blessingText);
+                const generatedAudioPath = path.join(tempDirPath, `generated_blessing_audio_${sessionId}.mp3`);
+                fs.writeFileSync(generatedAudioPath, audioContent, 'binary');
+                finalAudioPath = generatedAudioPath;
+            } catch (ttsError) {
+                console.warn(`AI 祝福語合成失敗為賓客 '${guestName}': ${ttsError.message}。嘗試使用原始上傳語音檔。`);
+                // 如果 AI 祝福語合成失敗，回退到使用原始上傳語音檔
+                if (audioUrl && audioUrl.startsWith('http')) {
+                    const audioExtension = path.extname(audioUrl).split('?')[0] || '.mp3';
+                    const downloadedAudioPath = path.join(tempDirPath, `downloaded_audio_${sessionId}${audioExtension}`);
+                    try {
+                        await downloadGoogleDriveFile(audioUrl, downloadedAudioPath);
+                        finalAudioPath = downloadedAudioPath;
+                        console.log(`回退到使用下載的原始語音檔: ${finalAudioPath}`);
+                    } catch (downloadError) {
+                        console.warn(`下載賓客 '${guestName}' 的原始語音檔也失敗: ${downloadError.message}。`);
+                        throw new Error('既無 AI 祝福語合成成功也無原始語音檔可用，無法生成影片。');
                     }
-                }
-                
-                const videoUrl = await generateDIDVideo(guest.photo_url, guest.blessing, guest.audio_url);
-
-                if (videoUrl) {
-                    // 更新 Google Sheet
-                    await updateSheetCell(originalIndex, 'video_url', videoUrl);
-                    await updateSheetCell(originalIndex, 'status', 'done');
-                    processedCount++;
-                    results.push({ index: originalIndex, success: true, videoUrl: videoUrl });
                 } else {
-                    console.error(`未能為 ${guest.name} 生成影片。`);
-                    // 可以選擇更新狀態為 'failed'
-                    await updateSheetCell(originalIndex, 'status', 'video_failed');
-                    results.push({ index: originalIndex, success: false, message: `未能生成影片。` });
+                    throw new Error('AI 祝福語合成失敗，且無原始語音檔可用。');
                 }
-            } else {
-                let skipReason = [];
-                if (guest.video_url && guest.video_url.trim() !== '') skipReason.push('影片已存在');
-                if (guest.status !== 'blessing_done' && guest.status !== 'blessing_failed') skipReason.push(`狀態不符 (${guest.status})`);
-                console.log(`跳過賓客: ${guest.name || '未定義'} (原始索引: ${originalIndex}) - ${skipReason.join('，')}。`);
-                results.push({ index: originalIndex, success: false, message: `跳過處理: ${skipReason.join('，')}` });
             }
+        } else if (audioUrl && audioUrl.startsWith('http')) {
+            // 如果沒有 AI 祝福語，則嘗試下載上傳的語音檔
+            console.log(`無 AI 祝福語，直接下載上傳的語音檔為賓客 '${guestName}'。`);
+            const audioExtension = path.extname(audioUrl).split('?')[0] || '.mp3';
+            const downloadedAudioPath = path.join(tempDirPath, `downloaded_audio_${sessionId}${audioExtension}`);
+            try {
+                await downloadGoogleDriveFile(audioUrl, downloadedAudioPath);
+                finalAudioPath = downloadedAudioPath;
+            } catch (downloadError) {
+                console.warn(`下載賓客 '${guestName}' 的語音檔失敗: ${downloadError.message}。`);
+                throw new Error('語音檔下載失敗，且無 AI 祝福語可用。');
+            }
+        } else {
+            // 如果兩者都沒有
+            const message = '既無上傳語音檔也無 AI 祝福語，無法生成影片。';
+            console.log(`跳過賓客: ${guestName} (原始索引: ${rowIndex}) - ${message}`);
+            await updateGoogleSheetCell(googleSheetId, 'status', rowIndex, 'video_failed');
+            return { index: rowIndex, success: false, message: `跳過處理: ${message}` };
         }
-        console.log(`AI 影片生成流程完成。共處理了 ${processedCount} 位賓客。`);
-        return { success: true, processedCount, results };
+
+        // 下載並處理臉部圖像
+        const faceExtension = path.extname(photoUrl).split('?')[0] || '.jpg';
+        const downloadedRawFacePath = path.join(tempDirPath, `face_raw_${sessionId}${faceExtension}`);
+        await downloadGoogleDriveFile(photoUrl, downloadedRawFacePath);
+
+        const faceImageBuffer = fs.readFileSync(downloadedRawFacePath);
+        const processedFacePath = path.join(tempDirPath, `face_${sessionId}.jpg`);
+        await processAndSaveImage(faceImageBuffer, processedFacePath);
+
+        // 確保檔案名稱在 Google Drive 中是有效的，並移除特殊字元
+        const outputVideoFileName = `avatar_${guestName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '')}_${sessionId}.mp4`;
+        const outputVideoPath = path.join(tempDirPath, outputVideoFileName);
+
+        const generatedVideoLocalPath = await generateWav2LipVideo(processedFacePath, finalAudioPath, outputVideoPath, tempDirPath);
+
+        // 關鍵修正：將生成的影片上傳到 Google Drive
+        let finalVideoUrl = '';
+        let uploadSuccess = false;
+
+        if (GOOGLE_DRIVE_FOLDER_ID) {
+            try {
+                finalVideoUrl = await uploadFileToGoogleDrive(generatedVideoLocalPath, outputVideoFileName, 'video/mp4');
+                uploadSuccess = true;
+                console.log(`影片成功上傳至 Google Drive: ${finalVideoUrl}`);
+            } catch (uploadError) {
+                console.error(`影片上傳到 Google Drive 失敗，將在 Google Sheet 中記錄失敗狀態:`, uploadError.message);
+                finalVideoUrl = '上傳失敗'; // 標記上傳失敗
+            }
+        } else {
+            console.warn("未設定 GOOGLE_DRIVE_FOLDER_ID，影片將不會上傳到 Google Drive，且 Google Sheet 中將記錄本地路徑。");
+            finalVideoUrl = generatedVideoLocalPath; // 保持本地路徑（無法在瀏覽器中直接存取）
+        }
+
+        // 根據上傳結果更新狀態
+        const status = uploadSuccess ? 'video_generated' : 'video_upload_failed';
+        await updateGoogleSheetCell(googleSheetId, 'AI生成影片網址', rowIndex, finalVideoUrl);
+        await updateGoogleSheetCell(googleSheetId, 'status', rowIndex, status);
+
+        return { index: rowIndex, success: uploadSuccess, videoUrl: finalVideoUrl, message: uploadSuccess ? '影片生成與上傳成功' : `影片生成成功但上傳失敗: ${finalVideoUrl}` };
+
     } catch (error) {
-        console.error('執行 AI 影片生成流程時發生錯誤:', error.message);
-        return { success: false, message: `AI 影片生成流程失敗: ${error.message}` };
+        console.error(`處理賓客 '${guestName}' (原始索引: ${rowIndex}) 的 AI 影片生成失敗:`, error);
+        await updateGoogleSheetCell(googleSheetId, 'status', rowIndex, 'video_failed');
+        return { index: rowIndex, success: false, message: `影片生成失敗: ${error.message}` };
+    } finally {
+        // 在調試完成且確定檔案已上傳後，取消註解此行以清理本地臨時檔案
+        // cleanupTempFiles(tempDirPath);
     }
 }
 
-module.exports = {
-    processAvatars
-};
 
-// 移除 main() 的自動呼叫
-// main();
+/**
+ * 處理多位賓客的 AI 影片生成流程。
+ * @param {Array<number>} guestIndexes - 要處理的賓客索引陣列。
+ * @returns {Promise<Object>} - 處理結果摘要。
+ */
+async function processAvatars(selectedGuestIndexes) {
+    console.log('開始為選定的賓客生成 AI 影片...');
+    const allGuests = await readGoogleSheet(GOOGLE_SHEET_ID, '表單回應 1!A:Z');
+
+    if (!allGuests || allGuests.length === 0) {
+        return { success: false, message: 'Google Sheet 中沒有可供處理的賓客數據。' };
+    }
+
+    const guestsToProcess = allGuests.filter(guest =>
+        selectedGuestIndexes.includes(guest._rowIndex)
+    );
+
+    console.log('從 Google Sheet 讀取到的所有賓客數據 (processAvatars - 截斷顯示):', JSON.stringify(guestsToProcess));
+
+    if (guestsToProcess.length === 0) {
+        return { success: false, message: '未找到選定的賓客數據。' };
+    }
+
+    const results = [];
+    for (const guest of guestsToProcess) {
+        const result = await processAvatar(guest, GOOGLE_SHEET_ID);
+        results.push(result);
+    }
+
+    console.log('AI 影片生成過程完成。已處理', results.filter(r => r.success).length, '位賓客。');
+    return { success: true, processedCount: results.filter(r => r.success).length, results: results };
+}
+
+
+module.exports = { processAvatars };

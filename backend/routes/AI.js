@@ -1,99 +1,86 @@
 // backend/routes/AI.js
-// 這個檔案現在作為一個路由模組，被主伺服器 (例如 server.js) 引入
-
-/* eslint-env node */ // 告訴 ESLint 這是 Node.js 環境
-
 const express = require('express');
-const path = require('path');
+const router = express.Router(); // 建立一個 Express 路由器實例
+const { processAvatars } = require('../AI/generateAvatar'); // 引入 AI 分身影片生成的核心邏輯
+const { processBlessings } = require('../AI/generateBlessings'); // 引入 AI 祝福語生成的核心邏輯
+const { readGoogleSheet } = require('../AI/googleSheetsService'); // 引入讀取 Google Sheet 的服務
 
-// 載入環境變數：確保 .env 檔案在 backend/ 目錄
-// 因為此檔案在 backend/routes/，所以 .env 在上層目錄(../)
-const dotenvResult = require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
-if (dotenvResult.error) {
-    console.error("dotenv 載入 .env 檔案時發生錯誤 (backend/routes/AI.js):", dotenvResult.error);
-    // 在這裡不使用 process.exit(1)，因為這個檔案現在是一個模組，讓主應用程式決定如何處理錯誤
-} else if (dotenvResult.parsed) {
-    console.log("dotenv 成功解析 .env 檔案。載入變數數量:", Object.keys(dotenvResult.parsed).length);
-} else {
-    console.log("dotenv 未解析任何變數，可能檔案為空或格式錯誤。");
-}
-
-// 檢查必要的環境變數 (只在此處記錄，讓主應用程式決定是否退出)
-const OPENAI_KEY = process.env.OPENAI_KEY;
-const DID_API_KEY = process.env.DID_API_KEY;
+// 從環境變數獲取 Google Sheet ID 和範圍，用於讀取賓客數據
 const GOOGLE_SHEET_ID = process.env.GOOGLE_SHEET_ID;
-const GOOGLE_SHEETS_KEY_FILE = process.env.GOOGLE_SHEETS_KEY_FILE;
-
-if (!OPENAI_KEY || !DID_API_KEY || !GOOGLE_SHEET_ID || !GOOGLE_SHEETS_KEY_FILE) {
-    console.warn("警告：缺少必要的 AI 環境變數。請檢查 .env 檔案中是否設定了 OPENAI_KEY, DID_API_KEY, GOOGLE_SHEET_ID, GOOGLE_SHEETS_KEY_FILE。部分 AI 功能可能無法運作。");
-} else {
-    console.log("AI 功能所需的所有必要的環境變數已載入。");
-}
-
-// 引入功能模組
-// 因為此檔案在 backend/routes/，而功能模組在 backend/AI/，所以路徑是 ../AI/
-const { readGuestsFromSheet, updateSheetCell, HEADER_MAPPING } = require('../AI/googleSheetsService.js');
-const { processBlessings } = require('../AI/generateBlessings.js'); 
-const { processAvatars } = require('../AI/generateAvatar.js');      
-
-// 使用 express.Router() 來創建一個可獨立定義路由的實例
-const router = express.Router(); 
-
-// --- API 端點 ---
+const GOOGLE_SHEET_RANGE = process.env.GOOGLE_SHEET_RANGE;
 
 /**
- * GET /guests
- * 獲取所有賓客數據 (路徑是 /api/guests)
+ * GET /api/ai/guests
+ * 獲取所有賓客數據。
  */
-router.get('/guests', async (req, res) => { 
+router.get('/guests', async (req, res) => {
     try {
-        const guests = await readGuestsFromSheet();
-        res.json(guests);
+        if (!GOOGLE_SHEET_ID || !GOOGLE_SHEET_RANGE) {
+            console.error('缺少 GOOGLE_SHEET_ID 或 GOOGLE_SHEET_RANGE 環境變數，無法讀取賓客數據。');
+            return res.status(500).json({ success: false, message: '伺服器配置錯誤：缺少 Google Sheet ID 或範圍。' });
+        }
+
+        const guests = await readGoogleSheet(GOOGLE_SHEET_ID, GOOGLE_SHEET_RANGE);
+        res.status(200).json({ success: true, guests: guests });
     } catch (error) {
-        console.error('獲取賓客數據失敗:', error);
-        res.status(500).json({ message: '獲取賓客數據失敗', error: error.message });
+        console.error('在 /guests 路由中讀取賓客數據失敗:', error);
+        res.status(500).json({ success: false, message: '載入賓客數據失敗。', error: error.message });
     }
 });
 
 /**
- * POST /generateBlessing
- * 觸發為選定賓客生成祝福語 (路徑是 /api/generateBlessing)
- * 請求體: { guestIndexes: [0, 2, ...] }
+ * POST /api/ai/generate-blessings
+ * 觸發 AI 祝福語生成流程。
+ * 接收一個包含要處理的賓客索引的陣列。
  */
-router.post('/generateBlessing', async (req, res) => { 
-    const { guestIndexes } = req.body;
-    if (!Array.isArray(guestIndexes) || guestIndexes.length === 0) {
-        return res.status(400).json({ message: '請提供有效的賓客索引列表。' });
-    }
-
+router.post('/generate-blessings', async (req, res) => {
     try {
+        const { guestIndexes } = req.body; // 期望請求體中包含 guestIndexes 陣列
+
+        // 驗證輸入
+        if (!guestIndexes || !Array.isArray(guestIndexes) || guestIndexes.length === 0) {
+            return res.status(400).json({ success: false, message: '未提供賓客索引。' });
+        }
+
+        console.log(`收到請求，將為以下索引的賓客生成祝福語: ${guestIndexes.join(', ')}`);
+
+        // 呼叫核心邏輯來處理祝福語生成
         const result = await processBlessings(guestIndexes);
-        res.json({ message: '祝福語生成請求已處理。', result });
+
+        // 根據處理結果回傳回應
+        res.status(200).json(result);
     } catch (error) {
-        console.error('生成祝福語失敗:', error);
-        res.status(500).json({ message: '生成祝福語失敗', error: error.message });
+        console.error('在 /generate-blessings 路由中發生錯誤:', error);
+        // 回傳 500 內部伺服器錯誤，並包含錯誤訊息
+        res.status(500).json({ success: false, message: '生成祝福語時發生內部伺服器錯誤。', error: error.message });
     }
 });
 
 /**
- * POST /generateAvatar
- * 觸發為選定賓客生成 AI 影片 (路徑是 /api/generateAvatar)
- * 請求體: { guestIndexes: [0, 2, ...] }
+ * POST /api/ai/generate-avatar-video
+ * 觸發 AI 分身影片生成流程。
+ * 接收一個包含要處理的賓客索引的陣列。
  */
-router.post('/generateAvatar', async (req, res) => { 
-    const { guestIndexes } = req.body;
-    if (!Array.isArray(guestIndexes) || guestIndexes.length === 0) {
-        return res.status(400).json({ message: '請提供有效的賓客索引列表。' });
-    }
-
+router.post('/generate-avatar-video', async (req, res) => {
     try {
+        const { guestIndexes } = req.body; // 期望請求體中包含 guestIndexes 陣列
+
+        // 驗證輸入
+        if (!Array.isArray(guestIndexes) || guestIndexes.length === 0) {
+            return res.status(400).json({ success: false, message: '未提供賓客索引。' });
+        }
+        console.log(`收到請求，將為以下索引的賓客生成 AI 影片: ${guestIndexes.join(', ')}`);
+
+        // 呼叫核心邏輯來處理分身影片生成
         const result = await processAvatars(guestIndexes);
-        res.json({ message: 'AI 影片生成請求已處理。', result });
+
+        // 根據處理結果回傳回應
+        res.status(200).json(result);
     } catch (error) {
-        console.error('生成 AI 影片失敗:', error);
-        res.status(500).json({ message: '生成 AI 影片失敗', error: error.message });
+        console.error('在 /generate-avatar-video 路由中發生錯誤:', error);
+        // 回傳 500 內部伺服器錯誤，並包含錯誤訊息
+        res.status(500).json({ success: false, message: '生成 AI 影片時發生內部伺服器錯誤。', error: error.message });
     }
 });
 
-// 將這個 router 模組匯出，讓主 Express 應用程式來使用它。
-module.exports = router;
+module.exports = router; // 匯出路由器實例
