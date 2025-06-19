@@ -107,13 +107,6 @@ export default function VendorPage() {
       });
     }
 
-    // 移除 selectedDate 相關篩選
-    // if (selectedDate) {
-    //   const selectedMonthYear = moment(selectedDate).format('YYYY-MM');
-    //   result = result.filter(vendor =>
-    //     vendor.created_at && moment(vendor.created_at).format('YYYY-MM') === selectedMonthYear
-    //   );
-    // }
 
     setFilteredAndSearchedVendors(result);
 
@@ -166,17 +159,6 @@ export default function VendorPage() {
       return 'hover:bg-slate-100';
   };
 
-  // 移除 selectedDate 相關函式
-  // const handleMonthSelect = (date) => {
-  //   setSelectedDate(date);
-  //   setFilterCategory('all');
-  //   setSearchQuery('');
-  //   setSearchBy('name');
-  // };
-
-  // const handleClearCalendarFilter = useCallback(() => {
-  //   setSelectedDate(null);
-  // }, []);
 
   const handlePageChange = (pageNumber) => {
       if (pageNumber >= 1 && pageNumber <= totalPages) {

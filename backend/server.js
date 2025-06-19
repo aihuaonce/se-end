@@ -15,6 +15,10 @@ const designProcessRoutes = require('./routes/designProcess');
 const vendorRoutes = require('./routes/vendorRoutes');
 const designProcessRouter = require('./routes/designProcess'); // 請確認路徑正確
 const planRoutes = require('./routes/planRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const customerRoutes = require('./routes/customer');
+const levelRoutes = require('./routes/level');
 
 const app = express();
 
@@ -32,6 +36,10 @@ app.use('/api/design-process', designProcessRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/plans', planRoutes);
+app.use('/api', bookingRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api', customerRoutes);
+app.use('/api', levelRoutes);
 
 
 app.use('/api/design-process', designProcessRouter);

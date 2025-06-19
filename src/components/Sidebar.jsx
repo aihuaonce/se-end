@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'; 
-import { DollarSign, Receipt, Users, Footprints, Calculator, Wallet, LineChart, Calendar, Phone, MessageSquare, Clock, Send, Lightbulb, FileText, Briefcase} from "lucide-react"; // 導入更多合適的圖標
+import { DollarSign, Receipt, Users, Footprints, Calculator, Wallet, LineChart, Calendar, Phone, MessageSquare, Clock, Send, Lightbulb, FileText, Briefcase, Tag} from "lucide-react"; // 導入更多合適的圖標
 
 export default function Sidebar() {
   const location = useLocation(); 
@@ -28,29 +28,35 @@ export default function Sidebar() {
           </li>
           
           <li> 
-            <Link to="/projects" className={getLinkClassName('/projects')}>
+            <Link to="/projectall" className={getLinkClassName('/projectall')}>
               <Calendar size={18} />
               <span>專案列表</span>
             </Link>
           </li>
 
-          <li className="font-bold text-base mt-2 mb-1 pl-1" style={{ color: '#CB8A90' }}>  
+          <li className="font-bold text-lg mt-4 mb-2 pl-2" style={{ color: '#CB8A90' }}>
             顧客
           </li>
-          <li> 
+          <li>
             <Link to="/customer" className={getLinkClassName('/customer')}>
               <Phone size={18} />
               <span>聯絡</span>
             </Link>
           </li>
           <li>
-            <Link to="/customers/communication" className={getLinkClassName('/customers/communication')}>
+            <Link to="/level" className={getLinkClassName('/level')}>
+              <Tag size={18} />
+              <span>分級</span>
+            </Link>
+          </li>
+          <li>
+            <Link to="/admin/chat" className={getLinkClassName('/admin/chat')}>
               <MessageSquare size={18} />
               <span>溝通</span>
             </Link>
           </li>
-          <li> 
-            <Link to="/booking" className={getLinkClassName('/booking')}>
+          <li>
+            <Link to="/reservations" className={getLinkClassName('/reservations')}>
               <Clock size={18} />
               <span>預約</span>
             </Link>

@@ -16,8 +16,12 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import Sidebar from './components/Sidebar';
 import VendorPage from './ServicePages/VendorPage'; 
+import CreateProjectForm from './ProjectPages/CreateProjectForm';
 import ProjectAll from './ProjectPages/ProjectAll';
 import ProjectDetailPage from './ProjectPages/ProjectDetailPage';
+import ReservationsPage from "./pages/ReservationsPage";
+import AdminChatPage from "./pages/AdminChatPage";
+import LevelPage from "./pages/LevelPage";
 
 import LoginModal from './modals/LoginModal';
 import RegisterModal from './modals/RegisterModal';
@@ -68,14 +72,19 @@ function App() {
           <Route path="service" element={<ServicePageContent />} />
           <Route path="process" element={<DesignProcess />} />
           <Route path="/design-process/:id" element={<DesignProcessDetail />} />
-          <Route path="customer" element={<CustomerPage />} />
+          <Route path="/customer" element={<CustomerPage />} />
           <Route path="customer/:id" element={<CustomerDetails />} />
           <Route path="persondata" element={<PersonDataPage />} />
           <Route path="booking" element={<BookingPage />} />
           <Route path="finance/*" element={<FinancePage />} />
           <Route path="/vendor" element={<VendorPage />} />
           <Route path="*" element={<NotFoundPage />} />
-          <Route path="projects" element={<ProjectAll />} /> 
+          <Route path="/reservations" element={<ReservationsPage />} />
+          <Route path="/admin/chat" element={<AdminChatPage />} />
+          <Route path="/level" element={<LevelPage />} /> 
+          <Route path="/create-project/:planId" element={<CreateProjectForm />} />
+          <Route path="/create-project" element={<CreateProjectForm />} />
+          <Route path="projectall" element={<ProjectAll />} /> 
           <Route path="/projects/:id" element={<ProjectDetailPage />} /> 
           <Route path="login" element={<div className="p-4 text-center text-gray-500">登入頁面背景內容...</div>} />
           <Route path="register" element={<div className="p-4 text-center text-gray-500">註冊頁面背景內容...</div>} />

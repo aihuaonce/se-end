@@ -22,12 +22,6 @@ const ProjectAll = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-[#cb8a90]">專案列表</h2>
-        <button
-          className="bg-[#cb8a90] text-white px-4 py-2 rounded hover:bg-[#b3777d]"
-          onClick={() => navigate('/projectall/new')}
-        >
-          ＋ 新增專案
-        </button>
       </div>
 
       <div className="overflow-auto bg-white border rounded-lg shadow">
