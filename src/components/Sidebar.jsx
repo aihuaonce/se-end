@@ -94,7 +94,7 @@ export default function Sidebar({ isLoggedIn }) {
           <li> 
             <Link to="/vendor" className={getLinkClassName('/vendor')}>
               <Briefcase size={18} />
-              <span>廠商推薦</span>
+              <span>合作廠商</span>
             </Link>
           </li>
 

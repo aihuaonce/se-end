@@ -189,7 +189,7 @@ export default function VendorPage() {
                   <div className="flex-grow">
                       <div className="flex justify-between items-center mb-8">
                           <h1 className="text-2xl md:text-3xl font-semibold text-slate-700 md:ml-0 mx-auto text-center">
-                              廠商推薦
+                              合作廠商
                               {searchQuery ? ` (搜尋: "${searchQuery}")` :
                                   /* 移除日期篩選相關文字 */
                                   ` (${filterCategory === 'all' ? '全部' : filterCategory})`}

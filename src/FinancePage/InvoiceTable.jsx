@@ -12,7 +12,7 @@ export default function InvoiceTable({ invoices, onInitiatePayment }) { // Remov
       <div style="font-family: 'Inter', sans-serif; padding: 20px; color: #333; width: 210mm; min-height: 297mm; margin: 0 auto; box-sizing: border-box; background-color: white;">
         <h1 style="text-align: center; color: #C9C2B2; margin-bottom: 20px;">發票 #${invoice.id}</h1>
         <div style="margin-bottom: 20px;">
-          <p><strong>公司名稱:</strong> ${invoice.customer_company_name}</p> <!-- Updated to use dynamic customer_company_name -->
+          <p><strong>名稱:</strong> ${invoice.customer_company_name}</p> <!-- Updated to use dynamic customer_company_name -->
           <p><strong>負責人姓名:</strong> ${invoice.customer_contact_person || 'N/A'}</p>
           <p><strong>開立日期:</strong> ${invoice.issueDate}</p>
           <p><strong>繳款截止日:</strong> ${invoice.dueDate}</p>

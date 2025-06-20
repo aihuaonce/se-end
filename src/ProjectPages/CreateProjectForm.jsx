@@ -8,7 +8,6 @@ const CreateProjectForm = () => {
 
   // 表單狀態，初始化時帶入 planId
   const [formData, setFormData] = useState({
-    client_name: '',
     wedding_date: '',
     plan_id: planId || '', // 自動帶入 planId
     groom_name: '',
@@ -16,6 +15,7 @@ const CreateProjectForm = () => {
     email: '', // 修正：改為正確的字段名
     phone: '', // 修正：改為後端期望的字段名
     wedding_place: '',
+    contact_person: '',
   });
 
   const [loading, setLoading] = useState(false);
@@ -49,7 +49,7 @@ const CreateProjectForm = () => {
         },
         body: JSON.stringify({
           // 修正：使用正確的字段名對應後端期望
-          client_name: formData.client_name, // 保留聯絡人字段
+          contact_person: formData.contact_person, // 保留聯絡人字段
           groom_name: formData.groom_name,
           bride_name: formData.bride_name,
           email: formData.email, // 現在會正確發送
@@ -93,12 +93,12 @@ const CreateProjectForm = () => {
         </div>
 
         <div className="form-group">
-          <label htmlFor="client_name">主要聯絡人:</label>
+          <label htmlFor="contact_person">主要聯絡人:</label>
           <input
             type="text"
-            id="client_name"
-            name="client_name"
-            value={formData.client_name}
+            id="contact_person"
+            name="contact_person"
+            value={formData.contact_person}
             onChange={handleChange}
             required
             className="form-control"

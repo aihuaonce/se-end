@@ -341,7 +341,7 @@ router.put('/:id', async (req, res) => {
 router.post('/new', async (req, res) => {
   // 從請求體中獲取前端可能發送的所有字段
   const {
-    groom_name, bride_name, email, phone, // 情侶詳情 (同時用於創建或查找 Customers)
+    contact_person, groom_name, bride_name, email, phone, // 情侶詳情 (同時用於創建或查找 Customers)
     wedding_date, wedding_time, wedding_place, plan_id, // 專案和詳情
     // form_link, // google_sheet_link (前端字段名是 form_link) - 現在非必要且不從此處輸入
     // 其他字段如 wedding_style, budget_id, remark, horoscope, blood_type, etc.
@@ -424,6 +424,7 @@ router.post('/new', async (req, res) => {
         const updateFields = {};
         if (customerName.trim() !== ' & ') updateFields.name = customerName; // 避免設置為 " & "
         if (phone) updateFields.phone = phone;
+        if (contact_person) updateFields.contact_person = contact_person;
 
         if (Object.keys(updateFields).length > 0) {
           const updateSql = Object.keys(updateFields).map(key => `${key} = ?`).join(', ');
@@ -449,8 +450,8 @@ router.post('/new', async (req, res) => {
       // 如果找不到現有客戶，創建一個新客戶記錄
       const customerName = `${groom_name} & ${bride_name}`; // 使用新人姓名組合作為客戶名稱
       const [newCustomerResult] = await connection.query(
-        'INSERT INTO customers (name, phone, email, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
-        [customerName, phone || null, email] // 電話欄位也設為可空
+        'INSERT INTO customers (name, contact_person, phone, email, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
+        [customerName, contact_person, phone || null, email] // 電話欄位也設為可空
       );
       finalCustomerId = newCustomerResult.insertId; // 獲取新創建客戶的 ID
       console.log(`[Backend POST /new] 創建新客戶，ID: ${finalCustomerId}`);

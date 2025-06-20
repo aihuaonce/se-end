@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import moment from 'moment';
 import 'moment/locale/zh-cn'; // 確保中文語言包已引入
+import { PlusCircle } from 'lucide-react'; // <<--- 新增：引入圖標
 
 moment.locale('zh-cn'); // 設置 moment 全局語言為中文
 
@@ -18,6 +19,10 @@ function AdminReservationsPage() {
     const [reservations, setReservations] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // <<--- 新增：用於控制新增預約模態框的狀態 (假設) ---
+    const [showAddReservationModal, setShowAddReservationModal] = useState(false);
+    // --- 新增結束 --- >
 
     const handleSearch = useCallback(async (showLoading = true) => {
         if(showLoading) setLoading(true);
@@ -52,10 +57,12 @@ function AdminReservationsPage() {
             if (response.data.data) {
                  setReservations(prev => prev.map(r => r.reservation_id === reservationId ? response.data.data : r));
             }
-            alert("預約狀態更新成功！"); // 中文提示
+            alert("預約狀態更新成功！");
+            // 可以考慮在成功後重新獲取列表，確保數據一致性，尤其如果後端有其他邏輯
+            // handleSearch(false); // 傳 false 避免重複的 loading 效果
         } catch (err) {
             console.error('狀態更新失敗：', err);
-            alert(`狀態更新失敗: ${err.message || '請稍後再試。'}`); // 中文提示
+            alert(`狀態更新失敗: ${err.message || '請稍後再試。'}`);
             setReservations(originalReservations);
         }
     };
@@ -71,9 +78,10 @@ function AdminReservationsPage() {
 
     const clearFilters = () => {
         setFilters({ customer_name: '', reservation_type: '', status: '', start_date: '', end_date: '' });
+        // 清除篩選後，通常會立即重新搜尋
+        // handleSearch(); // 如果希望清除後立即刷新，取消此行註釋
     };
 
-    // 狀態選項改為中文顯示，但 value 仍然是英文以匹配後端 ENUM
     const statusOptions = [
         { value: "", label: "全部狀態" },
         { value: "pending", label: "待確認" },
@@ -82,26 +90,55 @@ function AdminReservationsPage() {
         { value: "cancelled", label: "已取消" },
     ];
 
+    // <<--- 新增：處理新增預約按鈕點擊的函數 (假設) ---
+    const handleOpenAddReservationModal = () => {
+        setShowAddReservationModal(true);
+        // 在這裡您可以添加打開模態框或導航到新頁面的邏輯
+        console.log("新增預約按鈕被點擊，應打開模態框或跳轉。");
+    };
+
+    const handleCloseAddReservationModal = () => { // 假設的關閉模態框函數
+        setShowAddReservationModal(false);
+    }
+    // --- 新增結束 --- >
 
     return (
         <div className="p-6 md:p-8 font-sans bg-pink-50 min-h-screen">
             <style>{`
-                /* ... (CSS 樣式與上一版本相同，不需要因語言更改而修改) ... */
+                /* ... (CSS 樣式保持不變) ... */
                 .custom-input { border: 1px solid #e5a8b5; padding: 10px 12px; border-radius: 8px; transition: border-color 0.2s, box-shadow 0.2s; background-color: white; }
                 .custom-input:focus { outline: none; border-color: #cb8a90; box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.15); }
                 .filter-button { padding: 10px 20px; background-color: #ec4899; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
                 .filter-button:hover { background-color: #db2777; }
                 .filter-button.clear { background-color: #d1d5db; color: #374151; }
                 .filter-button.clear:hover { background-color: #9ca3af; }
-                h1.page-title { font-size: 2rem; font-weight: 700; margin-bottom: 1.5rem; color: #db2777; text-align: center; letter-spacing: 0.025em; }
+                h1.page-title { font-size: 2rem; font-weight: 700; color: #db2777; text-align: center; letter-spacing: 0.025em; } /* 移除 margin-bottom */
+                .page-header { display: flex; flex-direction: column; align-items: center; margin-bottom: 1.5rem; } /* 新增容器來包裹標題和按鈕 */
+                @media (min-width: 768px) { /* md breakpoint */
+                    .page-header { flex-direction: row; justify-content: space-between; }
+                    h1.page-title { text-align: left; }
+                }
                 .table-container { overflow-x: auto; background-color: white; border-radius: 12px; box-shadow: 0 6px 12px rgba(0,0,0,0.08); }
                 thead th { background-color: #fce7f3; color: #be185d; padding: 12px 10px; text-align:center; }
-                tbody td { padding: 12px 10px; border-color: #fde8f1; text-align:center; } /* text-align:center 可以移到 th/td */
+                tbody td { padding: 12px 10px; border-color: #fde8f1; text-align:center; }
                 tbody tr:hover { background-color: #fff0f5; }
                 .status-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #fbcfe8; background-color: white; min-width: 140px; font-size: 0.875rem; }
+                .add-button { display: flex; align-items: center; background-color: #ec4899; color: white; font-weight: 500; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: background-color 0.2s; }
+                .add-button:hover { background-color: #db2777; }
             `}</style>
 
-            <h1 className="page-title">預約管理系統</h1>
+            {/* <<--- 修改：將標題和新增按鈕包裹起來以便佈局 --- */}
+            <div className="page-header">
+                <h1 className="page-title">預約管理系統</h1>
+                <button
+                    onClick={handleOpenAddReservationModal}
+                    className="filter-button mt-4 md:mt-0 mt-5"
+                >
+                    新增預約
+                </button>
+            </div>
+            {/* --- 修改結束 --- > */}
+
 
             <div className="bg-white p-5 mb-6 shadow-lg rounded-xl">
                 <h2 className="text-lg font-semibold text-gray-700 mb-4">篩選條件</h2>
@@ -171,7 +208,6 @@ function AdminReservationsPage() {
                                             item.status === 'cancelled' ? 'bg-red-100 text-red-700' :
                                             'bg-yellow-100 text-yellow-700' // pending
                                         }`}>
-                                            {/* 將英文 status 轉為中文顯示 */}
                                             {statusOptions.find(opt => opt.value === item.status)?.label || item.status}
                                         </span>
                                     </td>
@@ -180,10 +216,9 @@ function AdminReservationsPage() {
                                         {item.status !== 'completed' && item.status !== 'cancelled' && (
                                              <select
                                                 className="status-select text-xs"
-                                                // 顯示一個提示性的預設選項，而不是直接綁定 item.status，避免選中即觸發 onChange
                                                 value="" 
                                                 onChange={(e) => {
-                                                    if (e.target.value) { // 確保選擇了有效操作
+                                                    if (e.target.value) {
                                                         handleUpdateStatus(item.reservation_id, e.target.value);
                                                     }
                                                 }}
@@ -195,7 +230,6 @@ function AdminReservationsPage() {
                                             </select>
                                         )}
                                         {(item.status === 'completed' || item.status === 'cancelled') && (
-                                            // 顯示已完成或已取消的中文狀態
                                             <span className="text-gray-400 text-xs italic">{statusOptions.find(opt => opt.value === item.status)?.label || item.status}</span>
                                         )}
                                     </td>
@@ -211,6 +245,28 @@ function AdminReservationsPage() {
                     </tbody>
                 </table>
             </div>
+            {/* <<--- 新增：顯示新增預約模態框 (如果 showAddReservationModal 為 true) --- */}
+            {showAddReservationModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex justify-center items-center z-50">
+                    <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+                        <h2 className="text-2xl font-semibold mb-6 text-pink-700">新增預約</h2>
+                        <p className="mb-4 text-gray-700">哈哈沒東西</p>
+                        <p className="mb-6 text-sm text-gray-500">
+                            (好的答答答)
+                        </p>
+                        <div className="flex justify-end">
+                            <button
+                                type="button"
+                                onClick={handleCloseAddReservationModal}
+                                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                            >
+                                關閉
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* --- 新增結束 --- > */}
         </div>
     );
 }
