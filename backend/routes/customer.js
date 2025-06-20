@@ -19,7 +19,7 @@ router.get('/customers', async (req, res) => {
   try {
     // 修改查詢語句，使用新的表格名稱和欄位名稱
     const [rows] = await pool.query(`
-      SELECT customer_id, name, phone, email FROM customers
+      SELECT customer_id, contact_person, phone, email FROM customers
     `);
     console.log(`[Backend GET /customers] 成功取得 ${rows.length} 筆客戶資料`);
     res.json(rows);

@@ -18,7 +18,7 @@ const planRoutes = require('./routes/planRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const customerRoutes = require('./routes/customer');
-const levelRoutes = require('./routes/level');
+const levelRoutes = require('./routes/Level.js');
 
 const app = express();
 
@@ -30,7 +30,7 @@ app.use('/customers', serviceRoutes);
 app.use('/sync-sheet-data', syncRoutes);
 app.use('/update-status', statusRoutes);
 app.use('/api', authRoutes);
-app.use('/', reserveRoutes);
+app.use('/api/reserve', reserveRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/design-process', designProcessRoutes);
 app.use('/api/vendors', vendorRoutes);

@@ -4,6 +4,9 @@ import axios from 'axios';
 function CustomerLevelPage() {
     const [selectedLevel, setSelectedLevel] = useState('');
     const [customers, setCustomers] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const API_BASE_URL = 'http://localhost:5713';
 
     const levelOptions = [
         'A級(高預算、戶外)',
@@ -15,13 +18,30 @@ function CustomerLevelPage() {
     ];
 
     const handleSearch = async () => {
+        if (!selectedLevel) { /* ... */ return; }
+        setLoading(true); setError(''); setCustomers([]); // 查詢前清空
         try {
-            const response = await axios.get(`/api/level`, {
+            const response = await axios.get(`${API_BASE_URL}/api/level`, {
                 params: { level: selectedLevel },
             });
-            setCustomers(response.data);
+            // 非常重要：確保 response.data 是數組
+            if (Array.isArray(response.data)) {
+                setCustomers(response.data);
+                if (response.data.length === 0) {
+                    setError("沒有找到符合條件的顧客。");
+                }
+            } else {
+                // 如果後端在某些情況下返回的不是數組（例如錯誤對象）
+                console.error("API 返回的數據不是一個數組:", response.data);
+                setCustomers([]); // 保持 customers 為空數組
+                setError(response.data?.message || "從伺服器獲取的數據格式不正確或查詢無結果。");
+            }
         } catch (error) {
             console.error('查詢錯誤:', error);
+            setError(error.response?.data?.message || '查詢顧客數據時發生錯誤，請稍後再試。');
+            setCustomers([]); // 出錯時確保是空數組
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -121,20 +141,24 @@ function CustomerLevelPage() {
                     </tr>
                 </thead>
                 <tbody>
-                    {customers.length === 0 ? (
-                        <tr>
-                            <td colSpan="3" className="no-data">
-                                尚無資料
-                            </td>
-                        </tr>
-                    ) : (
+                    {loading ? ( // <--- 檢查此處的 'loading'
+                        <tr><td colSpan="3" className="text-center py-5">查詢中...</td></tr>
+                    ) : error && (!Array.isArray(customers) || customers.length === 0) ? ( // 修正：當有錯誤且顧客數據無效或為空時顯示錯誤
+                        <tr><td colSpan="3" className="text-center py-5 text-red-500">{error}</td></tr>
+                    ) : Array.isArray(customers) && customers.length > 0 ? (
                         customers.map((customer) => (
                             <tr key={customer.顧客id}>
-                                <td>{customer.顧客id}</td>
-                                <td>{customer.顧客姓名}</td>
-                                <td>{customer.電子信箱}</td>
+                                <td className="px-4 py-3">{customer.顧客id}</td>
+                                <td className="px-4 py-3">{customer.顧客姓名}</td>
+                                <td className="px-4 py-3">{customer.電子信箱}</td>
                             </tr>
                         ))
+                    ) : (
+                        <tr>
+                            <td colSpan="3" className="no-data">
+                                {selectedLevel && !error ? "沒有找到符合條件的顧客。" : "請選擇分級並點擊查詢。"}
+                            </td>
+                        </tr>
                     )}
                 </tbody>
             </table>

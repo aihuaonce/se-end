@@ -394,6 +394,7 @@ const ProjectDetailPage = () => {
       budget_id: project.budget_id || null,
       plan_id: project.plan_id || null,
       wedding_style: project.wedding_style || null,
+      venue_type: project.venue_type || null,
       total_budget: project.total_budget || null,
       project_status: project.project_status || '規劃中',
       google_sheet_link: project.google_sheet_link || null,
@@ -404,6 +405,7 @@ const ProjectDetailPage = () => {
       favorite_season: project.favorite_season || null,
       beliefs_description: project.beliefs_description || null,
       needs_description: project.needs_description || null,
+      contact_person: project.contact_person,
       // project_build_time 和 project_update_time 應該由後端自動處理，前端不需要發送
     };
 
@@ -472,141 +474,169 @@ const ProjectDetailPage = () => {
         )}
       </div>
 
-      {/* 專案基本資料表格 (僅為結構示意，請填充您的字段) */}
-            {/* 專案基本資料表格 */}
-            <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
-        <h2 className="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">專案基本資料</h2>
-        <table className="w-full text-sm detail-table"> {/* detail-table class for potential specific styling */}
-          <tbody>
-            <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">專案ID</th>
-              <td className="border px-4 py-2">{project.project_id}</td>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">新郎</th>
-              <td className="border px-4 py-2">
-                {isEditing ? <input value={project.groom_name || ''} onChange={e => setProject({ ...project, groom_name: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.groom_name || <span className="italic text-gray-500">未提供</span>)}
+      <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
+      <h2 className="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">專案基本資料</h2>
+      <table className="w-full text-sm detail-table">
+        <tbody>
+          <tr>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">專案ID</th>
+            <td className="border px-4 py-2">{project.project_id}</td>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">新郎</th>
+            <td className="border px-4 py-2">
+              {isEditing ? <input value={project.groom_name || ''} onChange={e => setProject({ ...project, groom_name: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.groom_name || <span className="italic text-gray-500">未提供</span>)}
+            </td>
+          </tr>
+          <tr>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">新娘</th>
+            <td className="border px-4 py-2">
+              {isEditing ? <input value={project.bride_name || ''} onChange={e => setProject({ ...project, bride_name: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.bride_name || <span className="italic text-gray-500">未提供</span>)}
+            </td>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">聯絡人</th>
+            <td className="border px-4 py-2">
+              {isEditing ? (
+                <input 
+                  value={project.contact_person || ''} 
+                  onChange={e => setProject({ ...project, contact_person: e.target.value })} 
+                  className="w-full border rounded px-2 py-1" 
+                  placeholder="主要的聯絡窗口"
+                />
+              ) : (
+                project.contact_person || <span className="italic text-gray-500">未指定</span>
+              )}
+            </td>
+          </tr>
+          <tr>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">電話</th>
+            <td className="border px-4 py-2">
+              {isEditing ? <input value={project.couple_phone || ''} onChange={e => setProject({ ...project, couple_phone: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.couple_phone || <span className="italic text-gray-500">未提供</span>)}
+            </td>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">Email</th>
+            <td className="border px-4 py-2">
+              {isEditing ? <input value={project.couple_email || ''} onChange={e => setProject({ ...project, couple_email: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.couple_email || <span className="italic text-gray-500">未提供</span>)}
+            </td>
+          </tr>
+          <tr>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">婚期</th>
+            <td className="border px-4 py-2">
+              {isEditing ? (
+                <input type="date" value={project.wedding_date ? moment(project.wedding_date).format('YYYY-MM-DD') : ''} onChange={e => setProject({ ...project, wedding_date: e.target.value })} className="w-full border rounded px-2 py-1"/>
+              ) : (project.wedding_date ? moment(project.wedding_date).format('YYYY-MM-DD') : <span className="italic text-gray-500">未設定</span>)}
+            </td>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">婚禮時間</th>
+            <td className="border px-4 py-2">
+              {isEditing ? (
+                <input type="time" value={project.wedding_time || ''} onChange={e => setProject({ ...project, wedding_time: e.target.value })} className="w-full border rounded px-2 py-1"/>
+              ) : (project.wedding_time ? moment(project.wedding_time, 'HH:mm:ss').format('HH:mm') : <span className="italic text-gray-500">未設定</span>)}
+            </td>
+          </tr>
+          <tr>
+              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600 align-top">地點</th>
+              <td className="border px-4 py-2" colSpan={isEditing ? 1 : 3}> {/* 注意這裡的 colSpan */}
+                  {isEditing ? (
+                  <textarea /* ... 地點輸入 ... */ />
+                  ) : (
+                  project.wedding_place || <span className="italic text-gray-500">未提供</span>
+                  )}
               </td>
-            </tr>
-            <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">新娘</th>
-              <td className="border px-4 py-2">
-                {isEditing ? <input value={project.bride_name || ''} onChange={e => setProject({ ...project, bride_name: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.bride_name || <span className="italic text-gray-500">未提供</span>)}
-              </td>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">聯絡人</th>
-              <td className="border px-4 py-2">
-                {`${project.groom_name || ''}${project.groom_name && project.bride_name ? ' & ' : ''}${project.bride_name || ''}` || <span className="italic text-gray-500">未提供</span>}
-              </td>
-            </tr>
-            <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">電話</th>
-              <td className="border px-4 py-2">
-                {isEditing ? <input value={project.couple_phone || ''} onChange={e => setProject({ ...project, couple_phone: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.couple_phone || <span className="italic text-gray-500">未提供</span>)}
-              </td>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">Email</th>
-              <td className="border px-4 py-2">
-                {isEditing ? <input value={project.couple_email || ''} onChange={e => setProject({ ...project, couple_email: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.couple_email || <span className="italic text-gray-500">未提供</span>)}
-              </td>
-            </tr>
-            <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">婚期</th>
-              <td className="border px-4 py-2">
-                {isEditing ? (
-                  <input type="date" value={project.wedding_date ? moment(project.wedding_date).format('YYYY-MM-DD') : ''} onChange={e => setProject({ ...project, wedding_date: e.target.value })} className="w-full border rounded px-2 py-1"/>
-                ) : (project.wedding_date ? moment(project.wedding_date).format('YYYY-MM-DD') : <span className="italic text-gray-500">未設定</span>)}
-              </td>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">婚禮時間</th>
-              <td className="border px-4 py-2">
-                {isEditing ? (
-                  <input type="time" value={project.wedding_time || ''} onChange={e => setProject({ ...project, wedding_time: e.target.value })} className="w-full border rounded px-2 py-1"/>
-                ) : (project.wedding_time ? moment(project.wedding_time, 'HH:mm:ss').format('HH:mm') : <span className="italic text-gray-500">未設定</span>)}
-              </td>
-            </tr>
-            <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">地點</th>
-              <td className="border px-4 py-2" colSpan={isEditing ? 1: 3}> {/* Colspan adjustment for better layout in view mode */}
-                {isEditing ? <input value={project.wedding_place || ''} onChange={e => setProject({ ...project, wedding_place: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.wedding_place || <span className="italic text-gray-500">未提供</span>)}
-              </td>
-              {isEditing && <> {/* Only show these in editing mode for better table structure */}
-                <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">預算ID</th>
-                <td className="border px-4 py-2">
-                  {isEditing ? <input type="number" value={project.budget_id || ''} onChange={e => setProject({ ...project, budget_id: e.target.value })} className="w-full border rounded px-2 py-1" /> : project.budget_id}
-                </td>
-              </>}
-            </tr>
-            {!isEditing && project.budget_id && ( // Show budget_id in view mode if it exists
-                 <tr>
-                    <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">預算ID</th>
-                    <td className="border px-4 py-2" colSpan="3">{project.budget_id}</td>
-                 </tr>
-            )}
-            <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">方案ID</th>
-              <td className="border px-4 py-2">
-                {isEditing ? <input type="number" value={project.plan_id || ''} onChange={e => setProject({ ...project, plan_id: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.plan_id || <span className="italic text-gray-500">未指定</span>)}
-              </td>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">婚禮風格</th>
-              <td className="border px-4 py-2">
-                {isEditing ? <input value={project.wedding_style || ''} onChange={e => setProject({ ...project, wedding_style: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.wedding_style || <span className="italic text-gray-500">未指定</span>)}
-              </td>
-            </tr>
-            <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">總預算</th>
-              <td className="border px-4 py-2">
-                {isEditing ? <input type="number" step="0.01" value={project.total_budget || ''} onChange={e => setProject({ ...project, total_budget: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.total_budget ? `¥${parseFloat(project.total_budget).toLocaleString()}` : <span className="italic text-gray-500">未設定</span>)}
-              </td>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">專案狀態</th>
-              <td className="border px-4 py-2">
-                {isEditing ? (
-                  <select value={project.project_status || '規劃中'} onChange={e => setProject({...project, project_status: e.target.value})} className="w-full border rounded px-2 py-1.5">
-                    <option value="規劃中">規劃中</option>
-                    <option value="進行中">進行中</option>
-                    <option value="已完成">已完成</option>
-                    <option value="延期">延期</option>
-                    <option value="取消">取消</option>
+              {/* 只有在編輯模式下才顯示預算ID輸入，以便為場地類型騰出空間 */}
+              {isEditing && ( // 這段只在 isEditing true 時渲染
+                  <>
+                  <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600 align-top">預算ID</th>
+                  <td className="border px-4 py-2 align-top">
+                      <input type="number" /* ... 預算ID輸入 ... */ />
+                  </td>
+                  </>
+              )}
+          </tr>
+
+          {/* ---------- 新增：場地類型 (室內/戶外) ---------- */}
+          <tr>
+              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">場地類型</th>
+              <td className="border px-4 py-2" colSpan="3"> {/* <<< 問題可能在這裡的 colSpan="3" */}
+                  {isEditing ? (
+                  <select
+                      value={project.venue_type || ''}
+                      onChange={e => setProject({ ...project, venue_type: e.target.value })}
+                      className="w-full border rounded px-2 py-1.5"
+                  >
+                      <option value="">不指定</option>
+                      <option value="室內">室內</option>
+                      <option value="戶外">戶外</option>
                   </select>
-                ) : (project.project_status || <span className="italic text-gray-500">未設定</span>)}
+                  ) : (
+                  project.venue_type || <span className="italic text-gray-500">未指定</span>
+                  )}
               </td>
-            </tr>
+          </tr>
+          <tr>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">方案ID</th>
+            <td className="border px-4 py-2">
+              {isEditing ? <input type="number" value={project.plan_id || ''} onChange={e => setProject({ ...project, plan_id: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.plan_id || <span className="italic text-gray-500">未指定</span>)}
+            </td>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">婚禮風格</th>
+            <td className="border px-4 py-2">
+              {isEditing ? <input value={project.wedding_style || ''} onChange={e => setProject({ ...project, wedding_style: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.wedding_style || <span className="italic text-gray-500">未指定</span>)}
+            </td>
+          </tr>
+          <tr>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">總預算</th>
+            <td className="border px-4 py-2">
+              {isEditing ? <input type="number" step="0.01" value={project.total_budget || ''} onChange={e => setProject({ ...project, total_budget: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.total_budget ? `¥${parseFloat(project.total_budget).toLocaleString()}` : <span className="italic text-gray-500">未設定</span>)}
+            </td>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">專案狀態</th>
+            <td className="border px-4 py-2">
+              {isEditing ? (
+                <select value={project.project_status || '規劃中'} onChange={e => setProject({...project, project_status: e.target.value})} className="w-full border rounded px-2 py-1.5">
+                  <option value="規劃中">規劃中</option>
+                  <option value="進行中">進行中</option>
+                  <option value="已完成">已完成</option>
+                  <option value="延期">延期</option>
+                  <option value="取消">取消</option>
+                </select>
+              ) : (project.project_status || <span className="italic text-gray-500">未設定</span>)}
+            </td>
+          </tr>
+          <tr>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">Google Sheet</th>
+            <td className="border px-4 py-2" colSpan="3">
+              {isEditing ? (
+                <input type="text" value={project.google_sheet_link || ''} onChange={e => setProject({ ...project, google_sheet_link: e.target.value })} className="w-full border rounded px-2 py-1" placeholder="https://docs.google.com/..."/>
+              ) : (
+                project.google_sheet_link ? <a href={project.google_sheet_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{project.google_sheet_link}</a> : <span className="italic text-gray-500">未設定</span>
+              )}
+            </td>
+          </tr>
             <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">Google Sheet</th>
-              <td className="border px-4 py-2" colSpan="3">
-                {isEditing ? (
-                  <input type="text" value={project.google_sheet_link || ''} onChange={e => setProject({ ...project, google_sheet_link: e.target.value })} className="w-full border rounded px-2 py-1" placeholder="https://docs.google.com/..."/>
-                ) : (
-                  project.google_sheet_link ? <a href={project.google_sheet_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{project.google_sheet_link}</a> : <span className="italic text-gray-500">未設定</span>
-                )}
-              </td>
-            </tr>
-             <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">建立時間</th>
-              <td className="border px-4 py-2">{project.project_build_time ? moment(project.project_build_time).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}</td>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">最後更新</th>
-              <td className="border px-4 py-2">{project.project_update_time ? moment(project.project_update_time).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}</td>
-            </tr>
-            {/* --- 新人偏好等詳細資料 --- */}
-            <tr><td colSpan="4" className="pt-3 pb-1"><h3 className="text-md font-semibold text-gray-600">新人偏好細節</h3></td></tr>
-            <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">星座</th>
-              <td className="border px-4 py-2">{isEditing ? <input value={project.horoscope || ''} onChange={e => setProject({ ...project, horoscope: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.horoscope || <span className="italic text-gray-500">未提供</span>)}</td>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">血型</th>
-              <td className="border px-4 py-2">{isEditing ? <input value={project.blood_type || ''} onChange={e => setProject({ ...project, blood_type: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.blood_type || <span className="italic text-gray-500">未提供</span>)}</td>
-            </tr>
-            <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">喜歡的顏色</th>
-              <td className="border px-4 py-2">{isEditing ? <input value={project.favorite_color || ''} onChange={e => setProject({ ...project, favorite_color: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.favorite_color || <span className="italic text-gray-500">未提供</span>)}</td>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">喜歡的季節</th>
-              <td className="border px-4 py-2">{isEditing ? <input value={project.favorite_season || ''} onChange={e => setProject({ ...project, favorite_season: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.favorite_season || <span className="italic text-gray-500">未提供</span>)}</td>
-            </tr>
-            <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600 align-top">信仰/禁忌</th>
-              <td className="border px-4 py-2" colSpan="3">{isEditing ? <textarea value={project.beliefs_description || ''} onChange={e => setProject({ ...project, beliefs_description: e.target.value })} rows="2" className="w-full border rounded px-2 py-1" /> : (project.beliefs_description || <span className="italic text-gray-500">未提供</span>)}</td>
-            </tr>
-            <tr>
-              <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600 align-top">其他需求</th>
-              <td className="border px-4 py-2" colSpan="3">{isEditing ? <textarea value={project.needs_description || ''} onChange={e => setProject({ ...project, needs_description: e.target.value })} rows="2" className="w-full border rounded px-2 py-1" /> : (project.needs_description || <span className="italic text-gray-500">未提供</span>)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">建立時間</th>
+            <td className="border px-4 py-2">{project.project_build_time ? moment(project.project_build_time).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}</td>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">最後更新</th>
+            <td className="border px-4 py-2">{project.project_update_time ? moment(project.project_update_time).format('YYYY-MM-DD HH:mm:ss') : 'N/A'}</td>
+          </tr>
+          {/* --- 新人偏好等詳細資料 --- */}
+          <tr><td colSpan="4" className="pt-3 pb-1"><h3 className="text-md font-semibold text-gray-600">新人偏好細節</h3></td></tr>
+          <tr>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">星座</th>
+            <td className="border px-4 py-2">{isEditing ? <input value={project.horoscope || ''} onChange={e => setProject({ ...project, horoscope: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.horoscope || <span className="italic text-gray-500">未提供</span>)}</td>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">血型</th>
+            <td className="border px-4 py-2">{isEditing ? <input value={project.blood_type || ''} onChange={e => setProject({ ...project, blood_type: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.blood_type || <span className="italic text-gray-500">未提供</span>)}</td>
+          </tr>
+          <tr>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">喜歡的顏色</th>
+            <td className="border px-4 py-2">{isEditing ? <input value={project.favorite_color || ''} onChange={e => setProject({ ...project, favorite_color: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.favorite_color || <span className="italic text-gray-500">未提供</span>)}</td>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600">喜歡的季節</th>
+            <td className="border px-4 py-2">{isEditing ? <input value={project.favorite_season || ''} onChange={e => setProject({ ...project, favorite_season: e.target.value })} className="w-full border rounded px-2 py-1" /> : (project.favorite_season || <span className="italic text-gray-500">未提供</span>)}</td>
+          </tr>
+          <tr>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600 align-top">信仰/禁忌</th>
+            <td className="border px-4 py-2" colSpan="3">{isEditing ? <textarea value={project.beliefs_description || ''} onChange={e => setProject({ ...project, beliefs_description: e.target.value })} rows="2" className="w-full border rounded px-2 py-1" /> : (project.beliefs_description || <span className="italic text-gray-500">未提供</span>)}</td>
+          </tr>
+          <tr>
+            <th className="border px-4 py-2 bg-slate-50 text-left text-slate-600 align-top">其他需求</th>
+            <td className="border px-4 py-2" colSpan="3">{isEditing ? <textarea value={project.needs_description || ''} onChange={e => setProject({ ...project, needs_description: e.target.value })} rows="2" className="w-full border rounded px-2 py-1" /> : (project.needs_description || <span className="italic text-gray-500">未提供</span>)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
 
       {/* 顧客需求細節 */}

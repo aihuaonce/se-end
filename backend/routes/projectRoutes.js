@@ -110,40 +110,27 @@ router.get('/:id', async (req, res) => {
   try {
     // 從 wedding_projects 和 project_couple_details JOIN 查詢所有相關詳情
     const query = `
-            SELECT
-                wp.project_id,
-                wp.project_name, -- 專案名稱
-                wp.customer_id, -- 主要客戶 ID (連結到 Customers 表的客戶)
-                wp.plan_id, -- 套餐 ID
-                wpn.plan_name, -- 套餐名稱
-                wp.wedding_date, -- 婚禮日期
-                wp.wedding_time, -- 婚禮時間
-                wp.project_status, -- 專案狀態
-                wp.total_budget, -- 總預算
-                wp.google_sheet_link, -- Google Sheet 連結
-                wp.created_at AS project_build_time, -- 建立時間
-                wp.updated_at AS project_update_time, -- 更新時間
+      SELECT
+        wp.project_id, wp.project_name, wp.customer_id, wp.plan_id, wpn.plan_name,
+        wp.wedding_date, wp.wedding_time, wp.project_status, wp.total_budget, wp.venue_type,
+        wp.google_sheet_link, wp.created_at AS project_build_time, wp.updated_at AS project_update_time,
 
-                pcd.groom_name, -- 新郎姓名
-                pcd.bride_name, -- 新娘姓名
-                pcd.phone AS couple_phone, -- 情侶電話 (別名)
-                pcd.email AS couple_email, -- 情侶 Email (別名)
-                pcd.wedding_place, -- 婚禮地點
-                pcd.wedding_style, -- 婚禮風格
-                pcd.budget_id, -- 預算 ID (舊字段，保留)
-                pcd.remark AS couple_remark, -- 情侶備註 (別名)
-                pcd.horoscope, -- 星座
-                pcd.blood_type, -- 血型
-                pcd.favorite_color, -- 喜歡的顏色
-                pcd.favorite_season, -- 喜歡的季節
-                pcd.beliefs_description, -- 信仰/禁忌
-                pcd.needs_description -- 其他需求
+        pcd.groom_name, pcd.bride_name, pcd.phone AS couple_phone, pcd.email AS couple_email,
+        pcd.wedding_place, pcd.wedding_style, pcd.budget_id, pcd.remark AS couple_remark,
+        pcd.horoscope, pcd.blood_type, pcd.favorite_color, pcd.favorite_season,
+        pcd.beliefs_description, pcd.needs_description,
 
-            FROM wedding_projects wp
-            JOIN project_couple_details pcd ON wp.project_id = pcd.project_id -- JOIN 情侶詳情表
-            LEFT JOIN wedding_plans wpn ON wp.plan_id = wpn.plan_id -- LEFT JOIN 套餐表 (套餐可空)
-            WHERE wp.project_id = ?
-        `;
+        c.name AS customer_db_name, -- customers 表中的客戶全名 (可能是 groom & bride)
+        c.email AS customer_db_email, -- customers 表中的 email
+        c.phone AS customer_db_phone, -- customers 表中的 phone
+        c.contact_person -- <<< 新增：獲取 customers 表的 contact_person
+
+    FROM wedding_projects wp
+    JOIN project_couple_details pcd ON wp.project_id = pcd.project_id
+    LEFT JOIN wedding_plans wpn ON wp.plan_id = wpn.plan_id
+    LEFT JOIN customers c ON wp.customer_id = c.customer_id -- <<< 新增：JOIN customers 表
+    WHERE wp.project_id = ?
+    `;
 
     const [rows] = await pool.query(query, [projectId]);
 
@@ -167,10 +154,10 @@ router.put('/:id', async (req, res) => {
   const {
     groom_name, bride_name, email, phone, // project_couple_details 字段
     wedding_date, wedding_time, wedding_place, plan_id, // 分配到不同表
-    form_link, // google_sheet_link (前端字段名是 form_link)
+    form_link, venue_type, // google_sheet_link (前端字段名是 form_link)
     wedding_style, budget_id, remark, horoscope, blood_type, favorite_color, favorite_season, beliefs_description, needs_description,
     // total_budget, project_status 等可能也從其他地方更新
-    total_budget, project_status,
+    total_budget, project_status, contact_person
   } = req.body;
 
   if (isNaN(projectId) || projectId <= 0) {
@@ -238,6 +225,13 @@ router.put('/:id', async (req, res) => {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
+    const [projectRows] = await connection.query('SELECT customer_id FROM wedding_projects WHERE project_id = ?', [projectId]);
+    if (projectRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: '找不到指定的專案' });
+    }
+    const customerId = projectRows[0].customer_id;
+
     // 1. 更新 wedding_projects 表
     // 僅更新屬於 wedding_projects 的欄位
     const projectUpdateFields = {};
@@ -247,7 +241,7 @@ router.put('/:id', async (req, res) => {
     if (form_link !== undefined) projectUpdateFields.google_sheet_link = googleSheetLink || null; // form_link
     if (total_budget !== undefined) projectUpdateFields.total_budget = total_budget;
     if (project_status !== undefined) projectUpdateFields.project_status = project_status;
-
+    if (venue_type !== undefined) projectUpdateFields.venue_type = venue_type || null;
 
     const projectUpdateValues = Object.values(projectUpdateFields);
     const projectUpdateSql = Object.keys(projectUpdateFields).map(key => `${key} = ?`).join(', ');
@@ -290,6 +284,14 @@ router.put('/:id', async (req, res) => {
       [coupleDetailResult] = await connection.query(updateCoupleDetailQuery, [...coupleDetailUpdateValues, projectId]);
     }
 
+    let customerResult = { affectedRows: 0 };
+    if (contact_person !== undefined && customerId) { // 確保 customerId 有效
+      [customerResult] = await connection.query(
+        'UPDATE customers SET contact_person = ?, updated_at = CURRENT_TIMESTAMP WHERE customer_id = ?',
+        [contact_person || null, customerId]
+      );
+    }
+
 
     // 檢查是否有任一表更新到數據（affectedRows > 0）
     // 或者檢查專案 ID 是否存在以返回 404
@@ -300,7 +302,7 @@ router.put('/:id', async (req, res) => {
     }
 
     // 如果專案存在但沒有任何行的 affectedRows > 0，表示數據沒有變動
-    if (projectResult.affectedRows === 0 && coupleDetailResult.affectedRows === 0) {
+    if (projectResult.affectedRows === 0 && coupleDetailResult.affectedRows === 0 && customerResult.affectedRows === 0) {
       await connection.commit(); // 提交事務
       console.log(`[Backend PUT /${projectId}] 專案 ID ${projectId} 資料可能沒有變動。`);
       // 返回成功並提示無變動

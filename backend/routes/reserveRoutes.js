@@ -1,56 +1,138 @@
 const express = require("express");
 const router = express.Router();
-const pool = require("../db.js"); // 確保 db.js 導出 Promise-based 連接池
-const moment = require('moment'); // 用於日期時間驗證
+const pool = require("../db.js");
+const moment = require('moment');
 
-// 輔助函數：統一處理資料庫錯誤響應 (從其他路由文件複製)
-const sendDbError = (res, routeName, error, message = "伺服器內部錯誤") => {
-  console.error(`[${routeName}] 資料庫操作錯誤:`, error);
-  res.status(500).json({
-    message: `${message}: ${error.message}`,
+const sendDbError = (res, routeName, error, message = "Server internal error", statusCode = 500) => {
+  console.error(`[${routeName}] Database operation error:`, error);
+  const errMessage = process.env.NODE_ENV === 'production' ? message : `${message}: ${error.message || error}`;
+  res.status(statusCode).json({
+    success: false,
+    message: errMessage,
     code: error.code || 'UNKNOWN_DB_ERROR'
   });
 };
 
-// 注意：這個路由檔案操作一個未在提供的 Schema 中定義的 'reserve' 表格。
-// 下面的程式碼會保留對 'reserve' 表格的操作，但請確保你的資料庫中存在這個表格及其欄位。
+// [POST] /api/reserve - Create a reservation
+router.post('/', async (req, res) => {
+  console.log("[RESERVATIONS POST /] Received data:", req.body);
+  // Expecting English keys from frontend
+  const { customer_id, reservation_type, reservation_time, status, notes } = req.body;
 
-// [POST] /api/reserve/reserve - 創建預約
-// 路由名稱可能應該只是 /api/reserve (或者根據你 server.js 中的掛載來定)
-router.post('/reserve', async (req, res) => { // 路徑改為 /reserve
-  console.log("[RESERVE] 收到前端送來的資料：", req.body);
-
-  const { customer_id, 預約類型, 預約時間, 狀態 } = req.body; // 假設前端傳遞的是 customer_id
-
-  // 1. 輸入驗證
-  if (!customer_id || isNaN(parseInt(customer_id)) || !預約類型 || !預約時間 || !狀態) {
-    console.warn("[RESERVE] 缺少必要欄位或格式無效");
-    return res.status(400).json({ success: false, message: "缺少必要欄位或格式無效 (客戶ID, 預約類型, 預約時間, 狀態)" });
+  if (!customer_id || isNaN(parseInt(customer_id)) || !reservation_type || !reservation_time || !status) {
+    return res.status(400).json({ success: false, message: "Missing required fields (customer_id, reservation_type, reservation_time, status)" });
   }
-  // 驗證預約時間格式，假設是 DATETIME 格式
-  if (!moment(預約時間).isValid()) { // moment() 可以自動解析多種格式
-    console.warn(`[RESERVE] 無效的預約時間格式: ${預約時間}`);
-    return res.status(400).json({ success: false, message: "無效的預約時間格式" });
+  if (!moment(reservation_time, moment.ISO_8601, true).isValid()) {
+    return res.status(400).json({ success: false, message: "Invalid reservation_time format (should be ISO 8601, e.g., YYYY-MM-DDTHH:mm:ss)" });
   }
-  // 狀態值的基本驗證 (假設是某幾種類型)
-  // 例如：if (!['待確認', '已確認', '已取消'].includes(狀態)) { ... }
+  const validStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ success: false, message: `Invalid status value, must be one of: ${validStatuses.join(', ')}` });
+  }
 
   const parsedCustomerId = parseInt(customer_id);
+  const formattedReservationTime = moment(reservation_time).format('YYYY-MM-DD HH:mm:ss');
 
   try {
-    // 注意：操作未在 Schema 中定義的 'reserve' 表
     const [result] = await pool.query(
-      'INSERT INTO reserve (顧客id, 預約類型, 預約時間, 狀態) VALUES (?, ?, ?, ?)',
-      [parsedCustomerId, 預約類型, 預約時間, 狀態] // 假設 'reserve' 表的欄位名是中文
+      'INSERT INTO reservations (customer_id, reservation_type, reservation_time, status, notes) VALUES (?, ?, ?, ?, ?)',
+      [parsedCustomerId, reservation_type, formattedReservationTime, status, notes || null]
     );
-
-    console.log(`[RESERVE] 成功新增預約，ID: ${result.insertId}，客戶 ID: ${parsedCustomerId}`);
-    res.status(201).json({ success: true, message: "預約成功", id: result.insertId }); // 201 Created
+    console.log(`[RESERVATIONS POST /] Reservation created successfully, ID: ${result.insertId}`);
+    res.status(201).json({ success: true, message: "Reservation created successfully", id: result.insertId });
   } catch (error) {
-    sendDbError(res, 'POST /api/reserve', error, '預約失敗');
+    sendDbError(res, 'POST /api/reserve', error, 'Failed to create reservation');
   }
 });
 
-// 如果需要獲取預約列表或單個預約詳情，可以在這裡添加 GET 路由
+// [GET] /api/reserve - Get list of reservations (with filtering)
+router.get('/', async (req, res) => {
+  console.log("[RESERVATIONS GET /] Received filter params:", req.query);
+  // Expecting English keys for query params from frontend
+  const { customer_name, reservation_type, status, start_date, end_date } = req.query;
+
+  let query = `
+    SELECT 
+      r.reservation_id, 
+      r.customer_id, 
+      c.contact_person AS customer_name, 
+      r.reservation_type, 
+      r.reservation_time, 
+      r.status,
+      r.notes,
+      r.created_at,
+      r.updated_at
+    FROM reservations r
+    LEFT JOIN customers c ON r.customer_id = c.customer_id
+    WHERE 1=1
+  `;
+  const queryParams = [];
+  if (customer_name) {
+    query += ` AND c.name LIKE ?`;
+    queryParams.push(`%${customer_name}%`);
+  }
+  if (reservation_type) {
+    query += ` AND r.reservation_type LIKE ?`;
+    queryParams.push(`%${reservation_type}%`);
+  }
+  if (status) {
+    query += ` AND r.status = ?`;
+    queryParams.push(status);
+  }
+  if (start_date && moment(start_date, 'YYYY-MM-DD', true).isValid()) {
+    query += ` AND DATE(r.reservation_time) >= ?`;
+    queryParams.push(moment(start_date).format('YYYY-MM-DD'));
+  }
+  if (end_date && moment(end_date, 'YYYY-MM-DD', true).isValid()) {
+    query += ` AND DATE(r.reservation_time) <= ?`;
+    queryParams.push(moment(end_date).format('YYYY-MM-DD'));
+  }
+
+  query += ` ORDER BY r.reservation_time DESC`;
+
+  try {
+    const [rows] = await pool.query(query, queryParams);
+    res.json(rows);
+  } catch (error) {
+    sendDbError(res, 'GET /api/reserve', error, 'Failed to fetch reservations');
+  }
+});
+
+// [PUT] /api/reserve/:id/status - Update reservation status
+router.put('/:id/status', async (req, res) => {
+  const reservationId = parseInt(req.params.id);
+  // Expecting English key "status" in request body
+  const { status } = req.body;
+  console.log(`[RESERVATIONS PUT /${reservationId}/status] Updating status to:`, status);
+
+  if (isNaN(reservationId) || reservationId <= 0) {
+    return res.status(400).json({ success: false, message: "Invalid reservation ID" });
+  }
+  const validStatuses = ['pending', 'confirmed', 'cancelled', 'completed'];
+  if (!status || !validStatuses.includes(status)) {
+    return res.status(400).json({ success: false, message: `Invalid status value, must be one of: ${validStatuses.join(', ')}` });
+  }
+
+  try {
+    const [result] = await pool.query(
+      'UPDATE reservations SET status = ?, updated_at = NOW() WHERE reservation_id = ?', // Also update updated_at
+      [status, reservationId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Reservation not found or status unchanged" });
+    }
+    console.log(`[RESERVATIONS PUT /${reservationId}/status] Status updated successfully`);
+    // Optionally, fetch and return the updated reservation
+    const [updatedRows] = await pool.query('SELECT * FROM reservations WHERE reservation_id = ?', [reservationId]);
+    res.json({
+      success: true,
+      message: "Reservation status updated successfully",
+      data: updatedRows.length > 0 ? updatedRows[0] : null
+    });
+  } catch (error) {
+    sendDbError(res, `PUT /api/reserve/${reservationId}/status`, error, 'Failed to update reservation status');
+  }
+});
 
 module.exports = router;

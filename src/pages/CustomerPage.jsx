@@ -42,7 +42,7 @@ function CustomerPage() {
       const lowerCaseKeyword = searchKeyword.toLowerCase();
        // 過濾客戶數據，使用新的英文欄位名稱 name, phone, email
       return customers.filter((c) => {
-          const customerString = `${c.name || ''}${c.phone || ''}${c.email || ''}`; // 組合欄位值，處理可能為 null/undefined 的情況
+          const customerString = `${c.contact_person || ''}${c.phone || ''}${c.email || ''}`; // 組合欄位值，處理可能為 null/undefined 的情況
           return customerString.toLowerCase().includes(lowerCaseKeyword);
       });
   }, [customers, searchKeyword]); // 依賴 customers 數據和 searchKeyword
@@ -115,7 +115,7 @@ function CustomerPage() {
           <tr>
              {/* 使用 Tailwind padding/border/text/font classes */}
             <th className="py-3 px-4 border-b border-white text-sm font-semibold">客戶ID</th> 
-            <th className="py-3 px-4 border-b border-white text-sm font-semibold">姓名</th> 
+            <th className="py-3 px-4 border-b border-white text-sm font-semibold">聯絡人</th> 
             <th className="py-3 px-4 border-b border-white text-sm font-semibold">電話</th> 
             <th className="py-3 px-4 border-b border-white text-sm font-semibold">電子信箱</th> 
           </tr>
@@ -125,7 +125,7 @@ function CustomerPage() {
              /* 使用新的英文欄位名稱作為 key */
             <tr key={cust.customer_id} className="hover:bg-gray-100"> {/* 使用 Tailwind hover class */}
               <td className="py-3 px-4 border-b border-gray-200 text-gray-800 text-sm">{cust.customer_id}</td> 
-              <td className="py-3 px-4 border-b border-gray-200 text-gray-800 text-sm">{cust.name}</td>
+              <td className="py-3 px-4 border-b border-gray-200 text-gray-800 text-sm">{cust.contact_person}</td>
               <td className="py-3 px-4 border-b border-gray-200 text-gray-800 text-sm">{cust.phone}</td>
               <td className="py-3 px-4 border-b border-gray-200 text-gray-800 text-sm">{cust.email}</td>
             </tr>
